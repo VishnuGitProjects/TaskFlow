@@ -1,0 +1,96 @@
+/* Whole application layout container */
+.layout {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  max-height: 100vh;
+  background: transparent !important;
+  overflow: hidden;
+}
+
+/* Navbar + Content vertical container */
+.layout-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100vh;
+  max-height: 100vh;
+  background: transparent !important;
+  overflow: hidden;
+}
+
+/* 3D Wireframe Rotating Ring 1 */
+.layout-body::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  width: 480px;
+  height: 480px;
+  border: 1.5px dashed rgba(139, 92, 246, 0.08);
+  border-radius: 50%;
+  transform: rotateX(75deg) rotateY(15deg) rotateZ(0deg);
+  animation: rotateRing3D-1 30s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Right side content pane */
+.layout-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: transparent !important;
+}
+
+/* 3D Wireframe Rotating Ring 2 */
+.layout-content::before {
+  content: '';
+  position: absolute;
+  bottom: 10%;
+  right: 15%;
+  width: 580px;
+  height: 580px;
+  border: 1.5px dashed rgba(59, 130, 246, 0.07);
+  border-radius: 50%;
+  transform: rotateX(60deg) rotateY(-20deg) rotateZ(360deg);
+  animation: rotateRing3D-2 40s linear infinite;
+  pointer-events: none;
+  z-index: -2;
+}
+
+/* Second animated 3D depth blue orb under layout content */
+.layout-content::after {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 75%);
+  bottom: -15%;
+  left: 5%;
+  pointer-events: none;
+  z-index: -3;
+  filter: blur(120px);
+  animation: orbFloatBlue 30s ease-in-out infinite alternate;
+}
+
+@keyframes orbFloatBlue {
+  0% { transform: translate(0, 0) scale(1.1); }
+  100% { transform: translate(100px, -70px) scale(0.9); }
+}
+
+@keyframes rotateRing3D-1 {
+  0% { transform: perspective(800px) rotateX(75deg) rotateY(15deg) rotateZ(0deg); }
+  100% { transform: perspective(800px) rotateX(75deg) rotateY(15deg) rotateZ(360deg); }
+}
+
+@keyframes rotateRing3D-2 {
+  0% { transform: perspective(800px) rotateX(60deg) rotateY(-20deg) rotateZ(360deg); }
+  100% { transform: perspective(800px) rotateX(60deg) rotateY(-20deg) rotateZ(0deg); }
+}
