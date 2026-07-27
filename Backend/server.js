@@ -42,6 +42,7 @@ app.use(limiter);
 // ─── Restricted CORS Config ──────────────────────────────
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  "https://customary-shrapnel-backboned.ngrok-free.dev",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:3000",

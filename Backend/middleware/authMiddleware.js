@@ -29,15 +29,14 @@ const protect = async (req, res, next) => {
         return res.status(403).json({ message: "Account is deactivated." });
       }
 
-      next();
+      return next();
     } catch (error) {
       return res.status(401).json({ message: "Not authorized. Invalid token." });
     }
   }
 
-  if (!token) {
-    return res.status(401).json({ message: "No token provided." });
-  }
+  // No authorization header at all
+  return res.status(401).json({ message: "No token provided." });
 };
 
 /* ===================================

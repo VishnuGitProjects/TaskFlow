@@ -1,14 +1,10 @@
 import axios from "axios";
 
-// ─── Production API URL ──────────────────────────────────
-// Vite replaces import.meta.env.PROD with `true` at build time.
-// This guarantees the correct backend URL in production builds
-// even if .env.production is not loaded by the hosting platform.
-const PRODUCTION_API_URL = "https://customary-shrapnel-backboned.ngrok-free.dev/api";
-const DEV_API_URL = "http://localhost:5000/api";
-
+// ─── API URL ─────────────────────────────────────────────
+// Reads from VITE_API_URL (set in .env.development / .env.production).
+// Falls back to "/api" (relative, same-origin) so no URL is ever hardcoded.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PRODUCTION_API_URL : DEV_API_URL),
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "true",

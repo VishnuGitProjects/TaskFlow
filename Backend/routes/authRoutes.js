@@ -82,26 +82,32 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
 
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
     const verificationLink =
-`${process.env.BACKEND_URL}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(email)}`;
+      `${backendUrl}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(email)}`;
 
-console.log("Sending verification email...");
+    console.log("Sending verification email...");
 
-await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: "Verify Your TaskFlow Account",
-    html: `
-        <h2>Welcome to TaskFlow</h2>
-
-        <p>Click the button below to verify your email.</p>
-
-        <a href="${verificationLink}">
-            Verify Email
-        </a>
-    `
-});
-console.log("Email sent successfully!");
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Verify Your TaskFlow Account",
+        html: `
+            <h2>Welcome to TaskFlow</h2>
+            <p>Click the button below to verify your email.</p>
+            <p><a href="${verificationLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Verify Email</a></p>
+        `
+      });
+      console.log("Email sent successfully!");
+    } catch (mailErr) {
+      console.error("Failed to send verification email, rolling back registration:", mailErr);
+      await User.deleteOne({ _id: newUser._id });
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Registration rolled back, please try again."
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -141,10 +147,7 @@ router.get("/verify/:token", async (req, res) => {
 
       if (user.verificationTokenExpiry < Date.now()) {
         console.log(`[VERIFY ROUTE] TOKEN EXPIRED FOR USER: ${user.email}`);
-        return res.status(400).json({
-          success: false,
-          message: "Verification link has expired.",
-        });
+        return res.redirect(`${process.env.CLIENT_URL}/?error=expired`);
       }
 
       user.isVerified = true;
@@ -175,16 +178,80 @@ router.get("/verify/:token", async (req, res) => {
     }
 
     console.log("Invalid verification link - User/Token not matched");
-    return res.status(400).json({
-      success: false,
-      message: "Invalid verification link.",
-    });
+    return res.redirect(`${process.env.CLIENT_URL}/?error=invalid`);
 
   } catch (err) {
     console.error("[VERIFY ROUTE] ERROR:", err);
     return res.status(500).json({
       success: false,
       message: "Server Error",
+    });
+  }
+});
+
+
+/* ===========================
+   RESEND VERIFICATION EMAIL
+=========================== */
+router.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: "Email is required." });
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "If the account exists and is not verified, a new verification link has been sent."
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "This account has already been verified. Please log in."
+      });
+    }
+
+    // Generate new token & expiry
+    const verificationToken = crypto.randomBytes(20).toString("hex");
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpiry = Date.now() + 24 * 3600000; // 24 hours
+    await user.save();
+
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const verificationLink =
+      `${backendUrl}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(user.email)}`;
+
+    console.log(`Resending verification email to ${user.email}...`);
+
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Verify Your TaskFlow Account",
+        html: `
+            <h2>Welcome to TaskFlow</h2>
+            <p>Click the button below to verify your email.</p>
+            <p><a href="${verificationLink}" style="display:inline-block;background:#3b82f6;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Verify Email</a></p>
+        `
+      });
+      console.log("Email resent successfully!");
+    } catch (mailErr) {
+      console.error("Failed to resend verification email:", mailErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "If the account exists and is not verified, a new verification link has been sent."
+    });
+  } catch (err) {
+    console.error("Resend Verification Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error during resending verification link."
     });
   }
 });
@@ -257,9 +324,10 @@ router.post("/login", async (req, res) => {
 
   } catch (err) {
 
-    console.log(err);
+    console.error("Login Error:", err);
 
     res.status(500).json({
+      success: false,
       message: "Server Error",
     });
 
@@ -271,6 +339,10 @@ router.post("/login", async (req, res) => {
    SOCIAL LOGIN (SIMULATOR FOR OTHER PROVIDERS)
 =========================== */
 router.post("/social-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ message: "Social login simulator is disabled in production." });
+  }
+
   try {
     const { email, name, provider, avatar } = req.body;
 
@@ -346,7 +418,11 @@ router.post("/google-login", async (req, res) => {
       `https://oauth2.googleapis.com/tokeninfo?id_token=${id_token}`
     );
 
-    const { email, name, picture, email_verified } = tokenInfoResponse.data;
+    const { email, name, picture, email_verified, aud } = tokenInfoResponse.data;
+
+    if (aud !== clientId) {
+      return res.status(400).json({ message: "Invalid token audience (Client ID mismatch)." });
+    }
 
     if (!email_verified) {
       return res.status(400).json({ message: "Google email is not verified" });
@@ -355,7 +431,16 @@ router.post("/google-login", async (req, res) => {
     let user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
-      return res.status(404).json({ message: "Account not found. Please register first." });
+      // Auto-register the Google authenticated user
+      const generatedPassword = crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+      user = await User.create({
+        name: name || email.split("@")[0],
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        isVerified: true,
+        role: "team_member"
+      });
     }
 
     const token = jwt.sign(
@@ -390,25 +475,44 @@ router.post("/google-login", async (req, res) => {
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User with this email does not exist." });
+    const user = await User.findOne({ email: email ? email.toLowerCase() : "" });
+
+    if (user) {
+      // Generate reset token
+      const resetToken = crypto.randomBytes(20).toString("hex");
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = Date.now() + 3600000; // 1 hour from now
+      await user.save();
+
+      // Log to console for easy developer testing
+      console.log(`\n=============================================`);
+      console.log(`RESET PASSWORD LINK FOR ${email}:`);
+      console.log(`http://localhost:5173/reset-password?token=${resetToken}`);
+      console.log(`=============================================\n`);
+
+      // Actually send the email using Nodemailer
+      const resetLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?token=${resetToken}`;
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: "Reset Your TaskFlow Password",
+          html: `
+              <h2>Password Reset Request</h2>
+              <p>You requested to reset your password. Click the button below to complete the reset. This link will expire in 1 hour.</p>
+              <p><a href="${resetLink}" style="display:inline-block;background:#3b82f6;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Reset Password</a></p>
+          `
+        });
+        console.log("Password reset email sent successfully!");
+      } catch (mailErr) {
+        console.error("Failed to send password reset email via SMTP:", mailErr);
+      }
+    } else {
+      console.log(`Forgot password requested for non-existent email: ${email}`);
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString("hex");
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour from now
-    await user.save();
-
-    // Log to console for easy developer testing
-    console.log(`\n=============================================`);
-    console.log(`RESET PASSWORD LINK FOR ${email}:`);
-    console.log(`http://localhost:5178/reset-password?token=${resetToken}`);
-    console.log(`=============================================\n`);
-
     res.status(200).json({
-      message: "Password reset link generated. Check console log.",
+      message: "If that email address exists in our database, we have sent a password reset link to it.",
     });
   } catch (err) {
     console.log(err);
@@ -422,6 +526,15 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
+
+    // Password policy check (min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!password || !passwordRegex.test(password)) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+      });
+    }
+
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() },
@@ -450,6 +563,19 @@ router.post("/reset-password", async (req, res) => {
 router.post("/change-password", protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required." });
+    }
+
+    // Password strength check (min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message: "New password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+      });
+    }
+
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -465,7 +591,7 @@ router.post("/change-password", protect, async (req, res) => {
 
     res.status(200).json({ message: "Password updated successfully." });
   } catch (err) {
-    console.log(err);
+    console.error("Change Password Error:", err);
     res.status(500).json({ message: "Server Error" });
   }
 });

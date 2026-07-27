@@ -1,5 +1,5 @@
 import "../../styles/login.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
@@ -28,16 +28,22 @@ function Login() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [showGoogleChooser, setShowGoogleChooser] = useState(false);
   const [verifiedMessage, setVerifiedMessage] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const verified = urlParams.get("verified");
+    const verified = searchParams.get("verified");
+    const errorParam = searchParams.get("error");
     if (verified === "true") {
-      setVerifiedMessage("🎉 Email verified successfully! You can now log in.");
-      // Clean query parameters from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      setVerifiedMessage("✅ Your email has been verified successfully. Please login.");
+      setSearchParams({}, { replace: true });
+    } else if (errorParam === "expired") {
+      setVerifiedMessage("⚠️ Verification link has expired. Please register again or request a new link.");
+      setSearchParams({}, { replace: true });
+    } else if (errorParam === "invalid") {
+      setVerifiedMessage("⚠️ Invalid verification link. Please check your link or try again.");
+      setSearchParams({}, { replace: true });
     }
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
