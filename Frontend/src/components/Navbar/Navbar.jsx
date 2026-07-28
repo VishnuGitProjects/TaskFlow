@@ -1,9 +1,26 @@
 import { useState, useEffect } from "react";
 import { FaBell, FaSearch, FaBars, FaChevronDown, FaSignOutAlt, FaRegCommentDots } from "react-icons/fa";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getNotifications, markAsRead, markAllAsRead } from "../../services/notificationService";
+import { getProjects } from "../../services/projectService";
+import { getTasks } from "../../services/taskService";
+import { getUsers } from "../../services/userService";
+import { getTeams } from "../../services/teamService";
 import "../../styles/navbar.css";
+
+// Navigation suggestions
+const navigationRoutes = [
+  { name: "Dashboard", path: "/dashboard" },
+  { name: "Projects", path: "/projects" },
+  { name: "Tasks", path: "/tasks" },
+  { name: "Teams", path: "/teams" },
+  { name: "Users", path: "/users" },
+  { name: "Calendar", path: "/calendar" },
+  { name: "Settings", path: "/settings" },
+  { name: "Progress Tracking", path: "/progress" },
+  { name: "Reports", path: "/reports" },
+];
 
 // Format role for display
 const formatRole = (role) => {
@@ -14,13 +31,21 @@ const formatRole = (role) => {
   return role;
 };
 
-const Navbar = () => {
+const Navbar = ({ onToggleSidebar }) => {
   const { user, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isUsersPage = location.pathname === "/users";
+
+  // Global Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [allData, setAllData] = useState({ projects: [], tasks: [], users: [], teams: [] });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -37,6 +62,70 @@ const Navbar = () => {
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Load all entities in parallel when search gets focus
+  const loadSearchData = async () => {
+    if (dataLoaded) return;
+    try {
+      const [projects, tasks, users, teams] = await Promise.allSettled([
+        getProjects(),
+        getTasks(),
+        getUsers(),
+        getTeams(),
+      ]);
+
+      setAllData({
+        projects: projects.status === "fulfilled" ? projects.value : [],
+        tasks: tasks.status === "fulfilled" ? tasks.value : [],
+        users: users.status === "fulfilled" ? users.value : [],
+        teams: teams.status === "fulfilled" ? teams.value : [],
+      });
+      setDataLoaded(true);
+    } catch (err) {
+      console.error("Failed to load search data:", err);
+    }
+  };
+
+  // Perform search filter when query or loaded data changes
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+
+    // 1. Navigation matches
+    const navMatches = navigationRoutes
+      .filter((route) => route.name.toLowerCase().includes(q))
+      .map((route) => ({
+        name: route.name,
+        path: route.path,
+        type: "Navigation",
+        subtitle: `Go to ${route.name}`,
+      }));
+
+    // 2. Data matches
+    const projectMatches = allData.projects
+      .filter((p) => p.name.toLowerCase().includes(q))
+      .map((p) => ({ name: p.name, path: `/tasks?projectId=${p._id}`, type: "Project", subtitle: p.description }));
+
+    const taskMatches = allData.tasks
+      .filter((t) => t.title.toLowerCase().includes(q))
+      .map((t) => ({ name: t.title, path: `/tasks?projectId=${t.project?._id || t.project}`, type: "Task", subtitle: t.status }));
+
+    const userMatches = allData.users
+      .filter((u) => u.name.toLowerCase().includes(q))
+      .map((u) => ({ name: u.name, path: "/users", type: "User", subtitle: u.email }));
+
+    const teamMatches = allData.teams
+      .filter((t) => t.name.toLowerCase().includes(q))
+      .map((t) => ({ name: t.name, path: "/teams", type: "Team", subtitle: `${t.members?.length || 0} members` }));
+
+    const combined = [...navMatches, ...projectMatches, ...taskMatches, ...userMatches, ...teamMatches];
+
+    setSearchResults(combined.slice(0, 8)); // Limit to 8 items
+  }, [searchQuery, allData]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -59,8 +148,10 @@ const Navbar = () => {
   };
 
   const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
     if (isUsersPage) {
-      const event = new CustomEvent("globalSearch", { detail: e.target.value });
+      const event = new CustomEvent("globalSearch", { detail: val });
       window.dispatchEvent(event);
     }
   };
@@ -68,7 +159,7 @@ const Navbar = () => {
   return (
     <header className="navbar">
       <div className="navbar-left">
-        <button className="hamburger-btn">
+        <button className="hamburger-btn" onClick={onToggleSidebar}>
           <FaBars />
         </button>
         <div className="search-box">
@@ -76,8 +167,46 @@ const Navbar = () => {
           <input
             type="text"
             placeholder={isUsersPage ? "Search users..." : "Search projects, tasks, teams..."}
+            value={searchQuery}
             onChange={handleSearchChange}
+            onFocus={() => {
+              loadSearchData();
+              setShowSearchDropdown(true);
+            }}
+            onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
           />
+          {showSearchDropdown && searchQuery.trim() && (
+            <div className="search-dropdown">
+              {searchResults.length === 0 ? (
+                <div className="search-no-results">No results found</div>
+              ) : (
+                searchResults.map((result, idx) => (
+                  <div
+                    key={idx}
+                    className="search-result-item"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setSearchQuery("");
+                      setShowSearchDropdown(false);
+                      if (window.location.pathname === result.path.split("?")[0]) {
+                        window.location.href = result.path;
+                      } else {
+                        navigate(result.path);
+                      }
+                    }}
+                  >
+                    <div className="search-result-header">
+                      <span className="search-result-name">{result.name}</span>
+                      <span className="search-result-type">{result.type}</span>
+                    </div>
+                    {result.subtitle && (
+                      <span className="search-result-subtitle">{result.subtitle}</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
 

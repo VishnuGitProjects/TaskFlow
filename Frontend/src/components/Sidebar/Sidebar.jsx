@@ -20,11 +20,11 @@ import "../../styles/sidebar.css";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const Sidebar = () => {
+const Sidebar = ({ isCollapsed }) => {
   const { isAdmin, isManager } = useAuth();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
       {/* Logo Section */}
       <div className="sidebar-logo-section">
         <div className="sidebar-logo-icon">

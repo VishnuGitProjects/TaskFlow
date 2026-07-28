@@ -10,6 +10,7 @@
   overflow-y: auto;
   z-index: 100;
   flex-shrink: 0;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Scrollbar styling for sidebar */
@@ -374,4 +375,55 @@
 
 .theme-switch input:checked + .slider-round:before {
   transform: translateX(14px);
+}
+
+/* ── Collapsed Sidebar Styles ────────────────────────── */
+.sidebar.collapsed {
+  width: 80px;
+  padding: 30px 10px;
+}
+
+.sidebar.collapsed .sidebar-logo-section {
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-logo-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-menu {
+  align-items: center;
+}
+
+.sidebar.collapsed .menu-item {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.sidebar.collapsed .menu-item-left {
+  gap: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .menu-item-left svg {
+  font-size: 18px;
+}
+
+.sidebar.collapsed .menu-item-left span,
+.sidebar.collapsed .menu-item-arrow,
+.sidebar.collapsed .sidebar-submenu,
+.sidebar.collapsed .sidebar-dark-mode-row {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-copyright {
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 5px;
 }
