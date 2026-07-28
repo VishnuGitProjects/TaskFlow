@@ -6,6 +6,41 @@ const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 const router = express.Router();
 const transporter = require("../config/mail");
+const rateLimit = require("express-rate-limit");
+
+// Helper to determine the client and backend URLs dynamically based on the incoming request headers (to support ngrok tunnels and local setups seamlessly).
+const getClientAndBackendUrls = (req) => {
+  let clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  let backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+
+  const host = req.get("x-forwarded-host") || req.get("host") || "";
+  const isNgrok = host.includes("ngrok") || host.includes("ngrok-free.dev");
+
+  if (isNgrok) {
+    const proto = req.get("x-forwarded-proto") || req.protocol;
+    clientUrl = `${proto}://${host}`;
+    backendUrl = `${proto}://${host}`;
+  } else if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+    const proto = req.get("x-forwarded-proto") || req.protocol;
+    clientUrl = `${proto}://${host}`;
+    backendUrl = `${proto}://${host}`;
+  }
+
+  return { clientUrl, backendUrl };
+};
+
+// Rate limiter for verification resends to prevent spamming
+const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: {
+    success: false,
+    message: "Too many verification resend requests from this IP, please try again after 15 minutes."
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /* ===========================
    REGISTER
 =========================== */
@@ -82,7 +117,7 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
 
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const { backendUrl } = getClientAndBackendUrls(req);
     const verificationLink =
       `${backendUrl}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(email)}`;
 
@@ -125,11 +160,10 @@ router.post("/register", async (req, res) => {
 /* ===========================
    EMAIL VERIFICATION
 =========================== */
-
-
 router.get("/verify/:token", async (req, res) => {
   const { token } = req.params;
   const { email } = req.query;
+  const { clientUrl } = getClientAndBackendUrls(req);
 
   console.log(`\n--- [VERIFY ROUTE] GET /api/auth/verify/${token} ---`);
   console.log("REQUEST RECEIVED");
@@ -147,7 +181,7 @@ router.get("/verify/:token", async (req, res) => {
 
       if (user.verificationTokenExpiry < Date.now()) {
         console.log(`[VERIFY ROUTE] TOKEN EXPIRED FOR USER: ${user.email}`);
-        return res.redirect(`${process.env.CLIENT_URL}/?error=expired`);
+        return res.redirect(`${clientUrl}/login?error=expired`);
       }
 
       user.isVerified = true;
@@ -159,7 +193,7 @@ router.get("/verify/:token", async (req, res) => {
 
       await user.save();
 
-      const dest = `${process.env.CLIENT_URL}/?verified=true`;
+      const dest = `${clientUrl}/login?verified=true`;
       console.log(`redirect destination: ${dest}`);
       console.log("REDIRECT STARTED");
       return res.redirect(dest);
@@ -170,7 +204,7 @@ router.get("/verify/:token", async (req, res) => {
       user = await User.findOne({ email: email.toLowerCase() });
       if (user && user.isVerified) {
         console.log(`already verified: ${user.email}`);
-        const dest = `${process.env.CLIENT_URL}/?verified=true`;
+        const dest = `${clientUrl}/login?verified=true`;
         console.log(`redirect destination: ${dest}`);
         console.log("REDIRECT STARTED");
         return res.redirect(dest);
@@ -178,8 +212,7 @@ router.get("/verify/:token", async (req, res) => {
     }
 
     console.log("Invalid verification link - User/Token not matched");
-    return res.redirect(`${process.env.CLIENT_URL}/?error=invalid`);
-
+    return res.redirect(`${clientUrl}/login?error=invalid`);
   } catch (err) {
     console.error("[VERIFY ROUTE] ERROR:", err);
     return res.status(500).json({
@@ -193,65 +226,84 @@ router.get("/verify/:token", async (req, res) => {
 /* ===========================
    RESEND VERIFICATION EMAIL
 =========================== */
-router.post("/resend-verification", async (req, res) => {
+router.post("/resend-verification", resendVerificationLimiter, async (req, res) => {
   try {
     const { email } = req.body;
+
     if (!email || !email.trim()) {
       return res.status(400).json({ success: false, message: "Email is required." });
     }
 
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: "Please enter a valid email address." });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(200).json({
-        success: true,
-        message: "If the account exists and is not verified, a new verification link has been sent."
-      });
+      return res.status(404).json({ success: false, message: "No account found with this email." });
     }
 
     if (user.isVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "This account has already been verified. Please log in."
-      });
+      return res.status(400).json({ success: false, message: "This email is already verified." });
     }
 
-    // Generate new token & expiry
-    const verificationToken = crypto.randomBytes(20).toString("hex");
+    // Cooldown check (1 minute) to prevent spamming the user's inbox
+    if (user.verificationTokenExpiry) {
+      const lastSent = new Date(user.verificationTokenExpiry).getTime() - 24 * 60 * 60 * 1000;
+      const timePassed = Date.now() - lastSent;
+      if (timePassed < 60 * 1000) {
+        const secondsLeft = Math.ceil((60 * 1000 - timePassed) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${secondsLeft} seconds before requesting another verification email.`
+        });
+      }
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
     user.verificationToken = verificationToken;
-    user.verificationTokenExpiry = Date.now() + 24 * 3600000; // 24 hours
+    user.verificationTokenExpiry = verificationTokenExpiry;
     await user.save();
 
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const { backendUrl } = getClientAndBackendUrls(req);
     const verificationLink =
-      `${backendUrl}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(user.email)}`;
+      `${backendUrl}/api/auth/verify/${verificationToken}?email=${encodeURIComponent(normalizedEmail)}`;
 
-    console.log(`Resending verification email to ${user.email}...`);
+    console.log(`Resending verification email to: ${normalizedEmail}`);
 
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: user.email,
+        to: normalizedEmail,
         subject: "Verify Your TaskFlow Account",
         html: `
             <h2>Welcome to TaskFlow</h2>
             <p>Click the button below to verify your email.</p>
-            <p><a href="${verificationLink}" style="display:inline-block;background:#3b82f6;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Verify Email</a></p>
+            <p><a href="${verificationLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Verify Email</a></p>
         `
       });
-      console.log("Email resent successfully!");
+      console.log("Resend email sent successfully!");
     } catch (mailErr) {
-      console.error("Failed to resend verification email:", mailErr);
+      console.error("Failed to send verification email:", mailErr);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please try again later."
+      });
     }
 
     return res.status(200).json({
       success: true,
-      message: "If the account exists and is not verified, a new verification link has been sent."
+      message: "A new verification email has been sent."
     });
   } catch (err) {
     console.error("Resend Verification Error:", err);
     return res.status(500).json({
       success: false,
-      message: "Server Error during resending verification link."
+      message: "Server Error during resending verification."
     });
   }
 });
@@ -713,6 +765,5 @@ router.delete("/delete-account", protect, async (req, res) => {
     res.status(500).json({ error: "Failed to delete account" });
   }
 });
-  
 
 module.exports = router;

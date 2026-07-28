@@ -16,7 +16,6 @@ import {
   FaGlobe,
   FaCloudDownloadAlt,
   FaChevronRight,
-  FaCamera,
   FaEye,
   FaEyeSlash,
   FaCheck,
@@ -31,10 +30,16 @@ const Settings = () => {
   const [loadingStats, setLoadingStats] = useState(true);
   const [activeTab, setActiveTab] = useState("general");
 
+  const getDynamicRole = () => {
+    if (user?.role === "admin") return "Admin";
+    if (projects.length === 0) return "No projects yet";
+    const ownsAny = projects.some(p => String(p.owner?._id || p.owner) === String(user?._id));
+    return ownsAny ? "Project Owner" : "Team Member";
+  };
+
   // Tab 1: General Settings (Persisted in localStorage)
   const [generalSettings, setGeneralSettings] = useState(() => {
     return {
-      siteName: localStorage.getItem("setting_siteName") || "TaskFlow Pro",
       timeZone: localStorage.getItem("setting_timeZone") || "(GMT+05:30) Asia/Kolkata",
       dateFormat: localStorage.getItem("setting_dateFormat") || "MM DD, YYYY",
       weekStartDay: localStorage.getItem("setting_weekStartDay") || "Monday",
@@ -45,7 +50,6 @@ const Settings = () => {
   const [profileForm, setProfileForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    avatar: user?.avatar || "",
   });
 
   // Tab 3: Security Settings
@@ -94,7 +98,6 @@ const Settings = () => {
       setProfileForm({
         name: user.name || "",
         email: user.email || "",
-        avatar: user.avatar || "",
       });
     }
   }, [user]);
@@ -107,7 +110,6 @@ const Settings = () => {
     setSuccess(false);
 
     try {
-      localStorage.setItem("setting_siteName", generalSettings.siteName);
       localStorage.setItem("setting_timeZone", generalSettings.timeZone);
       localStorage.setItem("setting_dateFormat", generalSettings.dateFormat);
       localStorage.setItem("setting_weekStartDay", generalSettings.weekStartDay);
@@ -332,19 +334,6 @@ const Settings = () => {
               </div>
 
               <div className="settings-form-row">
-                <div className="settings-form-group full-width">
-                  <label className="settings-label">Site Name</label>
-                  <input
-                    type="text"
-                    className="settings-input"
-                    value={generalSettings.siteName}
-                    onChange={(e) => setGeneralSettings({ ...generalSettings, siteName: e.target.value })}
-                  />
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>This name will be displayed across the application.</span>
-                </div>
-              </div>
-
-              <div className="settings-form-row">
                 <div className="settings-form-group">
                   <label className="settings-label">Default Time Zone</label>
                   <select
@@ -421,19 +410,6 @@ const Settings = () => {
                     className="settings-input"
                     value={profileForm.email}
                     onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group full-width">
-                  <label className="settings-label">Avatar URL (Optional)</label>
-                  <input
-                    type="text"
-                    className="settings-input"
-                    placeholder="Enter image link"
-                    value={profileForm.avatar}
-                    onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
                   />
                 </div>
               </div>
@@ -528,14 +504,6 @@ const Settings = () => {
 
             <div className="action-row">
               <div className="toggle-info">
-                <span className="toggle-title">Clear Cache</span>
-                <span className="toggle-desc">Wipe out temporary data files to free memory.</span>
-              </div>
-              <button className="btn-settings-action action-blue" onClick={() => alert("Cache cleared successfully.")}>Clear Cache</button>
-            </div>
-
-            <div className="action-row">
-              <div className="toggle-info">
                 <span className="toggle-title">Delete Account</span>
                 <span className="toggle-desc">Permanently wipe your account and all associated projects.</span>
               </div>
@@ -552,13 +520,10 @@ const Settings = () => {
               <div className="settings-avatar-circle" style={{ background: `linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)` }}>
                 {initials}
               </div>
-              <div className="settings-avatar-edit-overlay" onClick={() => setActiveTab("profile")}>
-                <FaCamera />
-              </div>
             </div>
 
             <h3>{user?.name || "User Name"}</h3>
-            <p className="role-subtitle">{user?.role === "admin" ? "Project Admin" : user?.role === "project_manager" ? "Project Manager" : "Team Member"}</p>
+            <p className="role-subtitle">{getDynamicRole()}</p>
             <p className="email-subtitle">{user?.email}</p>
 
             <div className="profile-stats-divider"></div>
@@ -570,7 +535,7 @@ const Settings = () => {
 
             <div className="profile-stat-item">
               <span className="profile-stat-lbl">Role</span>
-              <span className="profile-stat-val">{user?.role === "admin" ? "Admin" : user?.role === "project_manager" ? "Manager" : "Member"}</span>
+              <span className="profile-stat-val">{getDynamicRole()}</span>
             </div>
 
             <div className="profile-stat-item">
@@ -584,18 +549,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Storage Usage Card */}
-          <div className="storage-card">
-            <h3>Storage Usage</h3>
-            <div className="storage-progress-info">
-              <span>Used 2.45 GB of 10 GB</span>
-              <span>24%</span>
-            </div>
-            <div className="storage-progress-bar-bg">
-              <div className="storage-progress-bar-fill" style={{ width: "24%" }}></div>
-            </div>
-            <button className="btn-manage-storage" onClick={() => alert("Redirecting to storage dashboard...")}>Manage Storage</button>
-          </div>
 
           {/* Danger Zone Card */}
           <div className="danger-zone-card">

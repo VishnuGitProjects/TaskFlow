@@ -85,6 +85,7 @@ const userRoutes    = require("./routes/userRoutes");
 const teamRoutes    = require("./routes/teamRoutes");
 const reportRoutes  = require("./routes/reportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 
 app.use("/api/auth",     authRoutes);
 app.use("/api/projects", projectRoutes);
@@ -93,6 +94,7 @@ app.use("/api/users",    userRoutes);
 app.use("/api/teams",    teamRoutes);
 app.use("/api/reports",  reportRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
 
 // ─── Health Check ────────────────────────────────────────
 app.get("/", (req, res) => {

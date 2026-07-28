@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["task_assigned", "project_joined", "project_invite", "general"],
+      enum: ["task_assigned", "project_joined", "project_invite", "new_message", "general"],
       default: "general",
     },
     title: {

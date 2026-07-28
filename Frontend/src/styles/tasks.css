@@ -1011,6 +1011,16 @@
   font-family: 'Inter', sans-serif;
   animation: modalFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+}
+
+.task-modal-card form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 }
 
 @keyframes modalFadeIn {
@@ -1057,6 +1067,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .form-group-row {
@@ -1098,6 +1110,11 @@
   border-color: #7c3aed;
   background: rgba(255, 255, 255, 0.05);
   box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
+}
+
+.form-group select option {
+  background-color: #0f172a;
+  color: #ffffff;
 }
 
 .task-modal-footer {

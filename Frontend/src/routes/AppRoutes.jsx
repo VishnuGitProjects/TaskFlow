@@ -18,6 +18,7 @@ import Calendar  from "../pages/Calendar/Calendar";
 import Reports   from "../pages/Reports/Reports";
 import Settings  from "../pages/Settings/Settings";
 import Progress  from "../pages/Progress/Progress";
+import Messages  from "../pages/Messages/Messages";
 
 function AppRoutes() {
   return (
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/progress"  element={<Progress />} />
         <Route path="/reports"  element={<Reports />} />
         <Route path="/users"    element={<Users />} />
+        <Route path="/messages" element={<Messages />} />
       </Route>
 
       {/* ── Admin + Project Manager only ─────────────── */}

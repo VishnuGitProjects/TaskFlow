@@ -63,6 +63,32 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const LiveDateTime = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    }) + " • " + date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true
+    });
+  };
+
+  return <span>{formatDateTime(currentDate)}</span>;
+};
+
 const Dashboard = () => {
   const { user, isAdmin, isManager } = useAuth();
   const [showCreateModal, setShowCreate] = useState(false);
@@ -100,28 +126,6 @@ const Dashboard = () => {
   useEffect(() => {
     loadDashboardData();
   }, []);
-
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatDateTime = (date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    }) + " • " + date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
-    });
-  };
 
   const handleCreateProject = async (formData) => {
     try {
@@ -314,7 +318,7 @@ const Dashboard = () => {
           </div>
           <div className="dashboard-date-selector">
             <FaCalendarAlt className="cal-icon" />
-            <span>{formatDateTime(currentDate)}</span>
+            <LiveDateTime />
             <FaChevronDown className="chevron" />
           </div>
         </div>

@@ -3,6 +3,7 @@ import { FaBell, FaSearch, FaBars, FaChevronDown, FaSignOutAlt, FaRegCommentDots
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getNotifications, markAsRead, markAllAsRead } from "../../services/notificationService";
+import { getUnreadMessagesCount } from "../../services/messageService";
 import { getProjects } from "../../services/projectService";
 import { getTasks } from "../../services/taskService";
 import { getUsers } from "../../services/userService";
@@ -20,6 +21,7 @@ const navigationRoutes = [
   { name: "Settings", path: "/settings" },
   { name: "Progress Tracking", path: "/progress" },
   { name: "Reports", path: "/reports" },
+  { name: "Messages", path: "/messages" },
 ];
 
 // Format role for display
@@ -46,6 +48,28 @@ const Navbar = ({ onToggleSidebar }) => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [allData, setAllData] = useState({ projects: [], tasks: [], users: [], teams: [] });
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [userProjects, setUserProjects] = useState([]);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchUserProjects = async () => {
+      try {
+        const data = await getProjects();
+        setUserProjects(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchUserProjects();
+  }, [location.pathname, user]);
+
+  const getDynamicRole = () => {
+    if (user?.role === "admin") return "Admin";
+    if (userProjects.length === 0) return "No projects yet";
+    const ownsAny = userProjects.some(p => String(p.owner?._id || p.owner) === String(user?._id));
+    return ownsAny ? "Project Owner" : "Team Member";
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -61,6 +85,36 @@ const Navbar = ({ onToggleSidebar }) => {
     // Poll every 30 seconds for new notifications
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const data = await getUnreadMessagesCount();
+        const count = data.totalUnread || 0;
+        setUnreadMessagesCount(count);
+        sessionStorage.setItem("unreadMessagesCount", count);
+        window.dispatchEvent(new CustomEvent("unreadMessagesUpdate", { detail: count }));
+      } catch (err) {
+        console.error("Failed to fetch unread messages count:", err);
+      }
+    };
+
+    fetchUnreadCount();
+
+    const handleRefresh = () => {
+      fetchUnreadCount();
+    };
+
+    window.addEventListener("refreshUnreadCount", handleRefresh);
+
+    const interval = setInterval(fetchUnreadCount, 4000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("refreshUnreadCount", handleRefresh);
+    };
   }, [user]);
 
   // Load all entities in parallel when search gets focus
@@ -135,6 +189,20 @@ const Navbar = ({ onToggleSidebar }) => {
       setNotifications(notifications.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
     } catch (err) {
       console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    try {
+      if (!n.isRead) {
+        await handleMarkAsRead(n._id);
+      }
+      if (n.type === "new_message" && n.relatedId) {
+        navigate(`/messages?projectId=${n.relatedId}`);
+        setShowNotifications(false);
+      }
+    } catch (err) {
+      console.error("Failed to process notification click:", err);
     }
   };
 
@@ -234,7 +302,7 @@ const Navbar = ({ onToggleSidebar }) => {
                     <div
                       key={n._id}
                       className={`notification-item ${n.isRead ? "read" : "unread"}`}
-                      onClick={() => handleMarkAsRead(n._id)}
+                      onClick={() => handleNotificationClick(n)}
                     >
                       <div className="notification-dot-container">
                         {!n.isRead && <span className="notification-unread-dot"></span>}
@@ -255,9 +323,13 @@ const Navbar = ({ onToggleSidebar }) => {
         </div>
 
         {/* Messages Icon with Badge */}
-        <div className="nav-icon-container">
+        <div className="nav-icon-container" onClick={() => navigate("/messages")}>
           <FaRegCommentDots className="nav-icon" />
-          {/* Real message count is 0, hiding badge */}
+          {unreadMessagesCount > 0 && (
+            <span className="nav-badge">
+              {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+            </span>
+          )}
         </div>
 
         {/* Profile Dropdown Trigger */}
@@ -267,7 +339,7 @@ const Navbar = ({ onToggleSidebar }) => {
           </div>
           <div className="profile-info">
             <h4>{user?.name || "John Manager"}</h4>
-            <span>{formatRole(user?.role)}</span>
+            <span>{getDynamicRole()}</span>
           </div>
           <FaChevronDown className="profile-chevron" />
 

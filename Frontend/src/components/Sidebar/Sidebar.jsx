@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   FaHome,
   FaFolderOpen,
@@ -22,6 +23,17 @@ import { useAuth } from "../../context/AuthContext";
 
 const Sidebar = ({ isCollapsed }) => {
   const { isAdmin, isManager } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(() => {
+    return parseInt(sessionStorage.getItem("unreadMessagesCount") || "0", 10);
+  });
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      setUnreadCount(e.detail);
+    };
+    window.addEventListener("unreadMessagesUpdate", handleUpdate);
+    return () => window.removeEventListener("unreadMessagesUpdate", handleUpdate);
+  }, []);
 
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
@@ -134,13 +146,21 @@ const Sidebar = ({ isCollapsed }) => {
         </NavLink>
 
         {/* Messages */}
-        <div className="menu-item disabled">
+        <NavLink
+          to="/messages"
+          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+        >
           <div className="menu-item-left">
             <FaRegCommentDots />
             <span>Messages</span>
+            {unreadCount > 0 && (
+              <div className="sidebar-badge">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </div>
+            )}
           </div>
           <FaChevronRight className="menu-item-arrow" />
-        </div>
+        </NavLink>
 
         {/* Settings */}
         <NavLink

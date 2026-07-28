@@ -58,7 +58,7 @@ const Tasks = () => {
     dueDate: "",
     project: "",
     assignedTo: "",
-    progress: 0,
+    progress: "",
   });
 
   const loadData = async () => {
@@ -176,7 +176,7 @@ const Tasks = () => {
       dueDate: "",
       project: firstProjId,
       assignedTo: assignees[0]?._id || "",
-      progress: 0,
+      progress: "",
     });
     setEditingTask(null);
     setShowCreateModal(true);
@@ -192,7 +192,7 @@ const Tasks = () => {
       dueDate: task.dueDate ? task.dueDate.substring(0, 10) : "",
       project: task.project?._id || task.project || "",
       assignedTo: task.assignedTo?._id || task.assignedTo || "",
-      progress: task.progress || 0,
+      progress: task.progress !== undefined ? task.progress : "",
     });
     setShowCreateModal(true);
   };
@@ -200,19 +200,52 @@ const Tasks = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        progress: formData.progress === "" ? 0 : Number(formData.progress),
+      };
+
       if (editingTask) {
-        const updated = await updateTask(editingTask._id, formData);
+        const updated = await updateTask(editingTask._id, payload);
         if (selectedTask?._id === editingTask._id) {
           setSelectedTask(updated);
         }
       } else {
-        await createTask(formData);
+        await createTask(payload);
       }
       setShowCreateModal(false);
       loadData();
     } catch (error) {
       alert(error.response?.data?.message || "Failed to save task");
     }
+  };
+
+  const isProjectOwnerForTask = (task) => {
+    if (user?.role === "admin") return true;
+    if (!task || !task.project) return false;
+    const projectId = task.project._id || task.project;
+    const project = projects.find(p => String(p._id) === String(projectId));
+    if (project) {
+      return String(project.owner?._id || project.owner) === String(user?._id);
+    }
+    return false;
+  };
+
+  const isOwnerOrAdmin = () => {
+    if (user?.role === "admin") return true;
+    if (!editingTask) return true; // full access when creating
+
+    const projectId = formData.project || editingTask.project?._id || editingTask.project;
+    const project = projects.find(p => String(p._id) === String(projectId));
+    if (project) {
+      return String(project.owner?._id || project.owner) === String(user?._id);
+    }
+    return false;
+  };
+
+  const canCreateTask = () => {
+    if (user?.role === "admin") return true;
+    return projects.some(p => String(p.owner?._id || p.owner) === String(user?._id));
   };
 
   const handleDelete = async (id) => {
@@ -263,9 +296,11 @@ const Tasks = () => {
             </div>
           </div>
           <div className="tasks-actions">
-            <button className="btn-create-task" onClick={handleOpenCreate}>
-              <FaPlus /> Create Task
-            </button>
+            {canCreateTask() && (
+              <button className="btn-create-task" onClick={handleOpenCreate}>
+                <FaPlus /> Create Task
+              </button>
+            )}
             <button className="btn-filter-task">
               <FaFilter /> Filters
             </button>
@@ -442,9 +477,11 @@ const Tasks = () => {
                           <button className="table-action-btn" onClick={() => handleOpenEdit(task)}>
                             <FaPen />
                           </button>
-                          <button className="table-action-btn btn-delete" onClick={() => handleDelete(task._id)}>
-                            <FaTrash />
-                          </button>
+                          {isProjectOwnerForTask(task) && (
+                            <button className="table-action-btn btn-delete" onClick={() => handleDelete(task._id)}>
+                              <FaTrash />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -643,6 +680,7 @@ const Tasks = () => {
                     placeholder="Enter task title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    disabled={!isOwnerOrAdmin()}
                   />
                 </div>
 
@@ -653,6 +691,7 @@ const Tasks = () => {
                     placeholder="Enter task guidelines..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    disabled={!isOwnerOrAdmin()}
                   ></textarea>
                 </div>
 
@@ -670,6 +709,7 @@ const Tasks = () => {
                           assignedTo: assignees[0]?._id || "",
                         });
                       }}
+                      disabled={!isOwnerOrAdmin()}
                     >
                       {projects.map((proj) => (
                         <option key={proj._id} value={proj._id}>{proj.name}</option>
@@ -682,6 +722,7 @@ const Tasks = () => {
                     <select
                       value={formData.assignedTo}
                       onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                      disabled={!isOwnerOrAdmin()}
                     >
                       {getProjectAssignees().map((userItem) => (
                         <option key={userItem._id} value={userItem._id}>{userItem.name}</option>
@@ -696,6 +737,7 @@ const Tasks = () => {
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      disabled={!isOwnerOrAdmin()}
                     >
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
@@ -726,6 +768,7 @@ const Tasks = () => {
                       required
                       value={formData.dueDate}
                       onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      disabled={!isOwnerOrAdmin()}
                     />
                   </div>
 
@@ -735,8 +778,19 @@ const Tasks = () => {
                       type="number"
                       min="0"
                       max="100"
+                      placeholder="0"
                       value={formData.progress}
-                      onChange={(e) => setFormData({ ...formData, progress: Number(e.target.value) })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          setFormData({ ...formData, progress: "" });
+                        } else {
+                          const num = Number(val);
+                          if (num >= 0 && num <= 100) {
+                            setFormData({ ...formData, progress: num });
+                          }
+                        }
+                      }}
                     />
                   </div>
                 </div>

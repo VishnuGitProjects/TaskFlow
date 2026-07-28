@@ -44,6 +44,11 @@ export const updateProfile = async (data) => {
   return res.data;
 };
 
+export const resendVerificationEmail = async (email) => {
+  const res = await api.post("/auth/resend-verification", { email });
+  return res.data;
+};
+
 export const socialLogin = async (socialData) => {
   const res = await api.post("/auth/social-login", socialData);
   if (res.data.token) {
