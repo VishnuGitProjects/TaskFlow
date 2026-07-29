@@ -21,7 +21,7 @@ import "../../styles/sidebar.css";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const Sidebar = ({ isCollapsed }) => {
+const Sidebar = ({ isCollapsed, onClose }) => {
   const { isAdmin, isManager } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
     return parseInt(sessionStorage.getItem("unreadMessagesCount") || "0", 10);
@@ -35,6 +35,12 @@ const Sidebar = ({ isCollapsed }) => {
     return () => window.removeEventListener("unreadMessagesUpdate", handleUpdate);
   }, []);
 
+  const handleItemClick = () => {
+    if (window.innerWidth <= 768 && onClose) {
+      onClose();
+    }
+  };
+
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
       {/* Logo Section */}
@@ -46,6 +52,9 @@ const Sidebar = ({ isCollapsed }) => {
           <h2>TaskFlow <span>Pro</span></h2>
           <p>Task Management & Progress Tracker</p>
         </div>
+        <button className="sidebar-close-btn" onClick={handleItemClick}>
+          &times;
+        </button>
       </div>
 
       {/* Navigation Menu */}
@@ -54,6 +63,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/dashboard"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaHome />
@@ -65,6 +75,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/projects"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaFolderOpen />
@@ -77,6 +88,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/tasks"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaTasks />
@@ -90,6 +102,7 @@ const Sidebar = ({ isCollapsed }) => {
           <NavLink
             to="/teams"
             className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+            onClick={handleItemClick}
           >
             <div className="menu-item-left">
               <FaUsers />
@@ -104,6 +117,7 @@ const Sidebar = ({ isCollapsed }) => {
           <NavLink
             to="/users"
             className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+            onClick={handleItemClick}
           >
             <div className="menu-item-left">
               <FaUserShield />
@@ -115,6 +129,7 @@ const Sidebar = ({ isCollapsed }) => {
             <NavLink
               to="/users"
               className={({ isActive }) => isActive ? "submenu-item active" : "submenu-item"}
+              onClick={handleItemClick}
             >
               <span className="submenu-dot">•</span> Users
             </NavLink>
@@ -125,6 +140,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/progress"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaChartLine />
@@ -137,6 +153,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/reports"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaChartBar />
@@ -149,6 +166,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/messages"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaRegCommentDots />
@@ -166,6 +184,7 @@ const Sidebar = ({ isCollapsed }) => {
         <NavLink
           to="/settings"
           className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          onClick={handleItemClick}
         >
           <div className="menu-item-left">
             <FaCog />
