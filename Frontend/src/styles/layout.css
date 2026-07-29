@@ -94,3 +94,19 @@
   0% { transform: perspective(800px) rotateX(60deg) rotateY(-20deg) rotateZ(360deg); }
   100% { transform: perspective(800px) rotateX(60deg) rotateY(-20deg) rotateZ(0deg); }
 }
+
+@media (max-width: 1024px) {
+  .layout-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout {
+    position: relative;
+    overflow-x: hidden;
+  }
+  .layout-content {
+    padding: 12px;
+  }
+}

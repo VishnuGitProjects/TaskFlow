@@ -14,6 +14,7 @@ const {
   removeMemberFromProject,
   transferProjectOwnership,
   getProjectActivityLogs,
+  getProjectById,
 } = require("../controllers/projectController");
 
 const { protect, checkProjectPermission } = require("../middleware/authMiddleware");
@@ -26,6 +27,9 @@ router.post("/", protect, createProject);
 
 // Get All Projects
 router.get("/", protect, getProjects);
+
+// Get Project by ID
+router.get("/:id", protect, checkProjectPermission("view_project"), getProjectById);
 
 // Update Project
 router.put("/:id", protect, checkProjectPermission("edit_project"), updateProject);

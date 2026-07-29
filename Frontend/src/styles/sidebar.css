@@ -461,3 +461,18 @@
   font-size: 8px;
   padding: 0;
 }
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    height: 100vh;
+    z-index: 1000;
+  }
+  
+  .sidebar:not(.collapsed) {
+    left: 0;
+    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.6);
+  }
+}

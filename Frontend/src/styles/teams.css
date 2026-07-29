@@ -596,3 +596,39 @@
   color: rgba(255, 255, 255, 0.4);
   font-size: 14px;
 }
+
+@media (max-width: 1024px) {
+  .teams-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .teams-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .teams-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .teams-grid {
+    grid-template-columns: 1fr;
+  }
+  .teams-bottom-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .team-modal-card {
+    width: calc(100% - 32px);
+    margin: 16px;
+  }
+  .team-modal-form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .teams-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

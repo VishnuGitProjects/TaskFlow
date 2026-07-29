@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import MainLayout from "../../layouts/MainLayout";
 import StatsCard from "../../components/Dashboard/StatsCard";
 import CreateProjectModal from "../../components/Projects/CreateProjectModal";
@@ -138,72 +138,79 @@ const Dashboard = () => {
   };
 
   // Sparkline data linked to real counts
-  const statsChartData = {
-    projects: [0, 0, 0, 0, 0, 0, realProjects.length],
-    tasks: [0, 0, 0, 0, 0, 0, realTasks.length],
-    completed: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() === "completed").length],
-    pending: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() !== "completed").length],
-    members: [0, 0, 0, 0, 0, 0, new Set(realTasks.map(t => t.assignedTo?._id || t.assignedTo).filter(Boolean)).size || 1],
-    overdue: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() !== "completed" && t.dueDate && new Date(t.dueDate) < new Date()).length],
-  };
+  const statsChartData = useMemo(() => {
+    return {
+      projects: [0, 0, 0, 0, 0, 0, realProjects.length],
+      tasks: [0, 0, 0, 0, 0, 0, realTasks.length],
+      completed: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() === "completed").length],
+      pending: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() !== "completed").length],
+      members: [0, 0, 0, 0, 0, 0, new Set(realTasks.map(t => t.assignedTo?._id || t.assignedTo).filter(Boolean)).size || 1],
+      overdue: [0, 0, 0, 0, 0, 0, realTasks.filter(t => t.status?.toLowerCase() !== "completed" && t.dueDate && new Date(t.dueDate) < new Date()).length],
+    };
+  }, [realProjects, realTasks]);
 
   // Donut chart data (Project Status Overview)
   const getProjectStatusCount = (statusName) => {
     return realProjects.filter(p => p.status?.toLowerCase().replace("_", " ") === statusName.toLowerCase()).length;
   };
 
-  const donutData = [
-    { name: "Planning", value: getProjectStatusCount("Planning"), color: "#3b82f6" },
-    { name: "In Progress", value: getProjectStatusCount("In Progress"), color: "#10b981" },
-    { name: "On Hold", value: getProjectStatusCount("On Hold"), color: "#f59e0b" },
-    { name: "Completed", value: getProjectStatusCount("Completed"), color: "#ec4899" },
-    { name: "Cancelled", value: getProjectStatusCount("Cancelled"), color: "#ef4444" },
-  ];
+  const donutData = useMemo(() => {
+    return [
+      { name: "Planning", value: getProjectStatusCount("Planning"), color: "#3b82f6" },
+      { name: "In Progress", value: getProjectStatusCount("In Progress"), color: "#10b981" },
+      { name: "On Hold", value: getProjectStatusCount("On Hold"), color: "#f59e0b" },
+      { name: "Completed", value: getProjectStatusCount("Completed"), color: "#ec4899" },
+      { name: "Cancelled", value: getProjectStatusCount("Cancelled"), color: "#ef4444" },
+    ];
+  }, [realProjects]);
 
   // Tasks overview line chart data (Weekly)
-  const lineChartData = [
-    { name: "Mon", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Tue", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Wed", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Thu", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Fri", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Sat", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-    { name: "Sun", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
-  ];
-
-  // Populate weekly lineChartData dynamically from real tasks
-  if (realTasks.length > 0) {
-    const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    realTasks.forEach(task => {
-      const date = task.createdAt ? new Date(task.createdAt) : new Date();
-      const dayName = daysOfWeek[date.getDay()];
-      const dayObj = lineChartData.find(d => d.name === dayName);
-      if (dayObj) {
-        const status = task.status ? task.status.toLowerCase() : "pending";
-        if (status === "completed") {
-          dayObj.Completed += 1;
-        } else if (status === "in progress" || status === "in_progress") {
-          dayObj["In Progress"] += 1;
-        } else {
-          dayObj.Pending += 1;
+  const lineChartData = useMemo(() => {
+    const data = [
+      { name: "Mon", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Tue", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Wed", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Thu", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Fri", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Sat", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+      { name: "Sun", Completed: 0, "In Progress": 0, Pending: 0, Overdue: 0 },
+    ];
+    if (realTasks.length > 0) {
+      const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      realTasks.forEach(task => {
+        const date = task.createdAt ? new Date(task.createdAt) : new Date();
+        const dayName = daysOfWeek[date.getDay()];
+        const dayObj = data.find(d => d.name === dayName);
+        if (dayObj) {
+          const status = task.status ? task.status.toLowerCase() : "pending";
+          if (status === "completed") {
+            dayObj.Completed += 1;
+          } else if (status === "in progress" || status === "in_progress") {
+            dayObj["In Progress"] += 1;
+          } else {
+            dayObj.Pending += 1;
+          }
+          if (status !== "completed" && task.dueDate && new Date(task.dueDate) < new Date()) {
+            dayObj.Overdue += 1;
+          }
         }
-        if (status !== "completed" && task.dueDate && new Date(task.dueDate) < new Date()) {
-          dayObj.Overdue += 1;
-        }
-      }
-    });
-  }
+      });
+    }
+    return data;
+  }, [realTasks]);
 
   // "My Tasks" data
-  const myTasksData = realTasks.map(task => ({
-    id: task._id,
-    title: task.title,
-    project: task.project?.name || "General Task",
-    due: task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No due date",
-    priority: task.priority || "Medium",
-    statusColor: task.priority === "High" ? "#f43f5e" : task.priority === "Medium" ? "#f59e0b" : "#3b82f6",
-    tab: task.assignedTo === user?._id || task.assignedTo?._id === user?._id ? "Assigned" : "Created"
-  }));
+  const myTasksData = useMemo(() => {
+    return realTasks.map(task => ({
+      id: task._id,
+      title: task.title,
+      project: task.project?.name || "General Task",
+      due: task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No due date",
+      priority: task.priority || "Medium",
+      statusColor: task.priority === "High" ? "#f43f5e" : task.priority === "Medium" ? "#f59e0b" : "#3b82f6",
+      tab: task.assignedTo === user?._id || task.assignedTo?._id === user?._id ? "Assigned" : "Created"
+    }));
+  }, [realTasks, user?._id]);
 
   // Filter tasks based on selected tab
   const filteredTasks = myTasksData.filter((task) => {

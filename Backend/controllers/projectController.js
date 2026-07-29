@@ -448,6 +448,71 @@ const transferProjectOwnership = async (req, res) => {
   }
 };
 
+const getProjectById = async (req, res) => {
+  try {
+    const Project = require("../models/Project");
+    const Task = require("../models/Task");
+    const ActivityLog = require("../models/ActivityLog");
+
+    const project = await Project.findById(req.params.id)
+      .populate("owner", "name email role")
+      .populate("members.user", "name email role");
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Fetch tasks for stats
+    const tasks = await Task.find({ project: project._id }).populate("assignedTo", "name email");
+
+    // Calculate task stats
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.status === "Completed").length;
+    const inProgressTasks = tasks.filter(t => t.status === "In Progress").length;
+    const reviewTasks = tasks.filter(t => t.status === "Review").length;
+    const pendingTasks = tasks.filter(t => t.status === "To Do").length;
+
+    // Fetch activity logs
+    const activityLogs = await ActivityLog.find({ project: project._id })
+      .populate("user", "name email")
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    const attachments = [];
+    tasks.forEach(t => {
+      if (t.attachments && Array.isArray(t.attachments)) {
+        t.attachments.forEach(file => {
+          attachments.push({
+            taskTitle: t.title,
+            taskId: t._id,
+            filename: file.filename,
+            url: file.url,
+            uploadedAt: file.uploadedAt
+          });
+        });
+      }
+    });
+
+    res.status(200).json({
+      project,
+      role: req.projectRole, // from checkProjectPermission middleware
+      stats: {
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        reviewTasks,
+        pendingTasks,
+        totalMembers: project.members.length + 1
+      },
+      tasks,
+      activityLogs,
+      attachments
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getProjectActivityLogs = async (req, res) => {
   try {
     const ActivityLog = require("../models/ActivityLog");
@@ -473,4 +538,5 @@ module.exports = {
   removeMemberFromProject,
   transferProjectOwnership,
   getProjectActivityLogs,
+  getProjectById,
 };

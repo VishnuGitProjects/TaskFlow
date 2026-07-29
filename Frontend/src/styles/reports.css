@@ -625,3 +625,36 @@
   font-size: 13px;
 }
 
+@media (max-width: 1024px) {
+  .reports-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .reports-charts-row-1,
+  .reports-charts-row-2 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .reports-header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .reports-custom-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .reports-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

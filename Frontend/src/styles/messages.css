@@ -232,3 +232,40 @@
   color: rgba(255, 255, 255, 0.25);
   cursor: not-allowed;
 }
+
+.mobile-back-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #8b5cf6;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  align-items: center;
+  padding: 8px 12px 8px 0;
+  margin-right: 12px;
+}
+
+.chat-header-info {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .messages-wrapper {
+    height: calc(100vh - 100px);
+  }
+  .mobile-back-btn {
+    display: flex;
+  }
+  
+  /* If a project is selected, hide the discussion list sidebar on mobile */
+  .messages-wrapper:has(.chat-header) .messages-sidebar {
+    display: none;
+  }
+  
+  /* If no project is selected, hide the empty state / chat main on mobile */
+  .messages-wrapper:not(:has(.chat-header)) .chat-main {
+    display: none;
+  }
+}

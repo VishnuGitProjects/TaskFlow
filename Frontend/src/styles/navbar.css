@@ -432,3 +432,25 @@
   color: rgba(255, 255, 255, 0.3);
   margin-top: 4px;
 }
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 15px;
+  }
+  .search-box {
+    max-width: 140px;
+    padding: 6px 10px;
+  }
+  .search-box:focus-within {
+    max-width: 160px;
+  }
+  .profile-info {
+    display: none;
+  }
+  .profile-chevron {
+    display: none;
+  }
+  .profile {
+    gap: 0;
+  }
+}

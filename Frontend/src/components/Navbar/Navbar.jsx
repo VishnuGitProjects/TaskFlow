@@ -50,7 +50,6 @@ const Navbar = ({ onToggleSidebar }) => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [userProjects, setUserProjects] = useState([]);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
-
   useEffect(() => {
     if (!user) return;
     const fetchUserProjects = async () => {
@@ -62,7 +61,7 @@ const Navbar = ({ onToggleSidebar }) => {
       }
     };
     fetchUserProjects();
-  }, [location.pathname, user]);
+  }, [user]);
 
   const getDynamicRole = () => {
     if (user?.role === "admin") return "Admin";
@@ -110,13 +109,12 @@ const Navbar = ({ onToggleSidebar }) => {
 
     window.addEventListener("refreshUnreadCount", handleRefresh);
 
-    const interval = setInterval(fetchUnreadCount, 4000);
+    const interval = setInterval(fetchUnreadCount, 12000);
     return () => {
       clearInterval(interval);
       window.removeEventListener("refreshUnreadCount", handleRefresh);
     };
   }, [user]);
-
   // Load all entities in parallel when search gets focus
   const loadSearchData = async () => {
     if (dataLoaded) return;

@@ -307,3 +307,39 @@
 .btn-close-details:hover {
   background: rgba(255, 255, 255, 0.08);
 }
+
+@media (max-width: 900px) {
+  .calendar-content-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .calendar-days-grid {
+    grid-auto-rows: minmax(60px, auto);
+  }
+  .calendar-day {
+    padding: 6px;
+    min-height: 60px;
+  }
+  .day-number {
+    font-size: 11px;
+  }
+  .task-badge-title {
+    font-size: 9px;
+  }
+  .calendar-task-badge {
+    padding: 2px 4px;
+    margin-top: 2px;
+  }
+  .calendar-weekdays span {
+    font-size: 11px;
+    padding: 6px 0;
+  }
+}

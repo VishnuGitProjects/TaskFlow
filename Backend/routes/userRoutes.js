@@ -136,7 +136,7 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
     console.log(`Hello ${finalName},`);
     console.log(`You have been added to the workspace as a ${role || "team_member"}.`);
     console.log(`Temporary Password: ${finalPassword}`);
-    console.log(`Login here: http://localhost:5173/`);
+    console.log(`Login here: ${process.env.CLIENT_URL || "http://localhost:5173"}`);
     console.log(`=============================================\n`);
 
     res.status(201).json({

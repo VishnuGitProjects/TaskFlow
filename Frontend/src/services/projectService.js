@@ -62,3 +62,8 @@ export const getProjectActivityLogs = async (id) => {
   const res = await api.get(`/projects/${id}/activity`);
   return res.data;
 };
+
+export const getProjectById = async (id) => {
+  const res = await api.get(`/projects/${id}`);
+  return res.data;
+};

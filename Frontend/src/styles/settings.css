@@ -533,3 +533,32 @@ input:checked + .slider:before {
 .settings-footer-links span:hover {
   color: #fff;
 }
+
+@media (max-width: 900px) {
+  .settings-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .settings-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+  }
+  .settings-tab-btn {
+    padding: 10px 14px;
+    flex-shrink: 0;
+  }
+  .settings-content-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .settings-footer {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+}

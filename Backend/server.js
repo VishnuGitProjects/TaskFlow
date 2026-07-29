@@ -45,10 +45,8 @@ app.use(limiter);
 // ─── Restricted CORS Config ──────────────────────────────
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  "https://taskflow-front.netlify.app",
   "https://customary-shrapnel-backboned.ngrok-free.dev",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
 ];
 
 app.use(
@@ -56,7 +54,14 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, postman, curl)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith("http://localhost")) {
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("http://127.0.0.1") ||
+        origin.includes("netlify.app") ||
+        origin.includes("ngrok-free.dev") ||
+        origin.includes("ngrok")
+      ) {
         return callback(null, true);
       } else {
         return callback(new Error("Not allowed by CORS"));

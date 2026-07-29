@@ -337,7 +337,7 @@ const Projects = () => {
                   });
 
                   return (
-                    <tr key={project._id}>
+                    <tr key={project._id} onClick={() => navigate(`/projects/${project._id}`)} style={{ cursor: "pointer" }}>
                       {/* Project Badge + Title & Description */}
                       <td>
                         <div className="table-project-meta">
@@ -348,15 +348,16 @@ const Projects = () => {
                             {initials}
                           </div>
                           <div className="project-info-text">
-                            <h4>{project.name}</h4>
+                            <h4 style={{ color: "#fff", textDecoration: "none" }} className="project-name-link">{project.name}</h4>
                             <p>{project.description || "No description provided."}</p>
                             {project.inviteCode && (
-                              <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
                                 <span style={{ fontSize: "11.5px", background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "4px", color: "#a5b4fc", fontFamily: "monospace" }}>
                                   Code: {project.inviteCode}
                                 </span>
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     navigator.clipboard.writeText(project.inviteCode);
                                     alert("Invite code copied!");
                                   }}
@@ -367,7 +368,8 @@ const Projects = () => {
                                 </button>
                                 {String(project.owner?._id || project.owner) === String(user?.id || user?._id) && (
                                   <button
-                                    onClick={async () => {
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
                                       if (window.confirm("Are you sure you want to regenerate the invite code?")) {
                                         try {
                                           await regenerateInviteCode(project._id);
@@ -408,7 +410,7 @@ const Projects = () => {
                       {/* Team Avatar Stack */}
                       <td>
                         {project.members && project.members.length === 0 ? (
-                          <span style={{ color: "rgba(255,255,255,0.3)", paddingLeft: "10px" }}>—</span>
+                           <span style={{ color: "rgba(255,255,255,0.3)", paddingLeft: "10px" }}>—</span>
                         ) : (
                           <div className="table-team-avatars">
                             <div className="team-avatar-stack">
@@ -467,11 +469,11 @@ const Projects = () => {
 
                       {/* Actions */}
                       <td>
-                        <div className="table-actions-cell">
+                        <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
                           {/* All users can view project tasks */}
                           <button
                             className="act-btn btn-view"
-                            onClick={() => navigate(`/tasks?projectId=${project._id}`)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/tasks?projectId=${project._id}`); }}
                             title="View Project Tasks"
                           >
                             <FaEye />
@@ -481,7 +483,7 @@ const Projects = () => {
                             <>
                               <button
                                 className="act-btn btn-edit"
-                                onClick={() => setEditProject(project)}
+                                onClick={(e) => { e.stopPropagation(); setEditProject(project); }}
                                 title="Edit Project"
                               >
                                 <FaPen />
@@ -489,7 +491,7 @@ const Projects = () => {
                               <button
                                 className="act-btn"
                                 style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981" }}
-                                onClick={() => setMemberAssigningProject(project)}
+                                onClick={(e) => { e.stopPropagation(); setMemberAssigningProject(project); }}
                                 title="Add Member by Email"
                               >
                                 <FaUserPlus />
@@ -497,14 +499,14 @@ const Projects = () => {
                               <button
                                 className="act-btn"
                                 style={{ background: "rgba(139, 92, 246, 0.12)", color: "#8b5cf6" }}
-                                onClick={() => setManagingMembersProject(project)}
+                                onClick={(e) => { e.stopPropagation(); setManagingMembersProject(project); }}
                                 title="Manage Members & Roles"
                               >
                                 <FaUsers />
                               </button>
                               <button
                                 className="act-btn btn-delete"
-                                onClick={() => handleDeleteProject(project._id)}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteProject(project._id); }}
                                 title="Delete Project"
                               >
                                 <FaTrash />
@@ -514,7 +516,7 @@ const Projects = () => {
                             <button
                               className="act-btn"
                               style={{ background: "rgba(239, 68, 68, 0.12)", color: "#ef4444" }}
-                              onClick={() => handleLeaveProject(project._id)}
+                              onClick={(e) => { e.stopPropagation(); handleLeaveProject(project._id); }}
                               title="Leave Project"
                             >
                               <FaSignOutAlt />

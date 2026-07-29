@@ -8,24 +8,10 @@ const router = express.Router();
 const transporter = require("../config/mail");
 const rateLimit = require("express-rate-limit");
 
-// Helper to determine the client and backend URLs dynamically based on the incoming request headers (to support ngrok tunnels and local setups seamlessly).
+// Helper to retrieve the configured client and backend URLs.
 const getClientAndBackendUrls = (req) => {
-  let clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-  let backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
-
-  const host = req.get("x-forwarded-host") || req.get("host") || "";
-  const isNgrok = host.includes("ngrok") || host.includes("ngrok-free.dev");
-
-  if (isNgrok) {
-    const proto = req.get("x-forwarded-proto") || req.protocol;
-    clientUrl = `${proto}://${host}`;
-    backendUrl = `${proto}://${host}`;
-  } else if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
-    const proto = req.get("x-forwarded-proto") || req.protocol;
-    clientUrl = `${proto}://${host}`;
-    backendUrl = `${proto}://${host}`;
-  }
-
+  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
   return { clientUrl, backendUrl };
 };
 
@@ -354,7 +340,7 @@ router.post("/login", async (req, res) => {
 
     // Create JWT
     const token = jwt.sign(
-      { id: user._id },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       {
         expiresIn: "1d",
@@ -369,6 +355,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
         isActive: user.isActive,
         avatar: user.avatar,
       },
@@ -539,7 +526,7 @@ router.post("/forgot-password", async (req, res) => {
       // Log to console for easy developer testing
       console.log(`\n=============================================`);
       console.log(`RESET PASSWORD LINK FOR ${email}:`);
-      console.log(`http://localhost:5173/reset-password?token=${resetToken}`);
+      console.log(`${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?token=${resetToken}`);
       console.log(`=============================================\n`);
 
       // Actually send the email using Nodemailer

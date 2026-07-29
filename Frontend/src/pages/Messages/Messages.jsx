@@ -162,9 +162,14 @@ const Messages = () => {
             <>
               {/* Active Chat Header */}
               <div className="chat-header">
-                <div>
-                  <h4>{selectedProject.name}</h4>
-                  <span>{selectedProject.description || "Project Discussion"}</span>
+                <div className="chat-header-info">
+                  <button type="button" className="mobile-back-btn" onClick={() => setSelectedProject(null)}>
+                    ← Back
+                  </button>
+                  <div>
+                    <h4>{selectedProject.name}</h4>
+                    <span>{selectedProject.description || "Project Discussion"}</span>
+                  </div>
                 </div>
                 <div>
                   <span>{selectedProject.members?.length || 1} members</span>
