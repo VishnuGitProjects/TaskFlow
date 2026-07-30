@@ -121,38 +121,19 @@ router.post("/register", async (req, res) => {
         `
       });
       console.log("Email sent successfully!");
-      return res.status(201).json({
-        success: true,
-        message: "Verification email sent successfully."
-      });
     } catch (mailErr) {
-      console.error("Failed to send verification email:", mailErr);
-      
-      const isBlocked = mailErr.code === "ETIMEDOUT" || mailErr.code === "ECONNREFUSED" || mailErr.message?.includes("timeout");
-      if (isBlocked || process.env.NODE_ENV === "production") {
-        console.warn("SMTP connection timed out or is blocked (likely Render Free Tier). Fallback: auto-verifying user.");
-        newUser.isVerified = true;
-        newUser.verificationToken = undefined;
-        newUser.verificationTokenExpiry = undefined;
-        await newUser.save();
-        
-        console.log(`\n=============================================`);
-        console.log(`VERIFICATION LINK FOR ${email}:`);
-        console.log(verificationLink);
-        console.log(`=============================================\n`);
-        
-        return res.status(201).json({
-          success: true,
-          message: "Registration successful. (Auto-verified due to email service connection restrictions in production)."
-        });
-      }
-
+      console.error("Failed to send verification email, rolling back registration:", mailErr);
       await User.deleteOne({ _id: newUser._id });
       return res.status(500).json({
         success: false,
         message: "Failed to send verification email. Registration rolled back, please try again."
       });
     }
+
+    return res.status(201).json({
+      success: true,
+      message: "Verification email sent successfully."
+    });
   } catch (err) {
     console.error("Register Error:", err);
     return res.status(500).json({
@@ -292,32 +273,18 @@ router.post("/resend-verification", resendVerificationLimiter, async (req, res) 
         `
       });
       console.log("Resend email sent successfully!");
-      return res.status(200).json({
-        success: true,
-        message: "A new verification email has been sent."
-      });
     } catch (mailErr) {
       console.error("Failed to send verification email:", mailErr);
-      
-      const isBlocked = mailErr.code === "ETIMEDOUT" || mailErr.code === "ECONNREFUSED" || mailErr.message?.includes("timeout");
-      if (isBlocked || process.env.NODE_ENV === "production") {
-        console.warn("SMTP connection timed out or is blocked (likely Render Free Tier). Fallback: auto-verifying user.");
-        user.isVerified = true;
-        user.verificationToken = undefined;
-        user.verificationTokenExpiry = undefined;
-        await user.save();
-        
-        return res.status(200).json({
-          success: true,
-          message: "Account verified successfully. (Auto-verified due to email service connection restrictions in production)."
-        });
-      }
-
       return res.status(500).json({
         success: false,
         message: "Failed to send verification email. Please try again later."
       });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: "A new verification email has been sent."
+    });
   } catch (err) {
     console.error("Resend Verification Error:", err);
     return res.status(500).json({
