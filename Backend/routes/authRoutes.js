@@ -15,6 +15,48 @@ const getClientAndBackendUrls = (req) => {
   return { clientUrl, backendUrl };
 };
 
+router.get("/verify-smtp", async (req, res) => {
+  try {
+    const emailUserSet = !!process.env.EMAIL_USER;
+    const emailPassSet = !!process.env.EMAIL_PASS;
+    const mongoUriSet = !!process.env.MONGO_URI;
+    const jwtSecretSet = !!process.env.JWT_SECRET;
+    
+    console.log("Testing SMTP connection...");
+    let smtpError = null;
+    let smtpSuccess = false;
+    try {
+      await transporter.verify();
+      smtpSuccess = true;
+    } catch (err) {
+      smtpError = {
+        message: err.message,
+        code: err.code,
+        command: err.command
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      env: {
+        EMAIL_USER: emailUserSet,
+        EMAIL_PASS: emailPassSet,
+        MONGO_URI: mongoUriSet,
+        JWT_SECRET: jwtSecretSet,
+      },
+      smtp: {
+        success: smtpSuccess,
+        error: smtpError
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
 // Rate limiter for verification resends to prevent spamming
 const resendVerificationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
