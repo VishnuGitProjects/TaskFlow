@@ -15,6 +15,57 @@ const getClientAndBackendUrls = (req) => {
   return { clientUrl, backendUrl };
 };
 
+router.get("/verify-smtp-full", async (req, res) => {
+  try {
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS ? "PRESENT (hidden)" : "MISSING";
+    const nodeEnv = process.env.NODE_ENV;
+
+    console.log("Testing SMTP sendMail...");
+    let sendError = null;
+    let sendResult = null;
+    try {
+      sendResult = await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: "yashika6.mishra@gmail.com",
+        subject: "TaskFlow SMTP Diagnostic Test",
+        text: "This is a diagnostic test email to verify SMTP configuration on Render.",
+      });
+    } catch (err) {
+      sendError = {
+        message: err.message,
+        code: err.code,
+        command: err.command,
+        stack: err.stack,
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      env: {
+        EMAIL_USER: emailUser,
+        EMAIL_PASS: emailPass,
+        NODE_ENV: nodeEnv,
+      },
+      smtp: {
+        transporterConfig: {
+          host: transporter.options.host,
+          port: transporter.options.port,
+          secure: transporter.options.secure,
+        },
+        result: sendResult,
+        error: sendError
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      stack: err.stack,
+    });
+  }
+});
+
 // Rate limiter for verification resends to prevent spamming
 const resendVerificationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
