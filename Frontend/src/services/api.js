@@ -1,10 +1,18 @@
 import axios from "axios";
 
-// ─── API URL ─────────────────────────────────────────────
-// Reads from VITE_API_URL (set in .env.development / .env.production).
-// Falls back to "/api" (relative, same-origin) so no URL is ever hardcoded.
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("ngrok")) {
+    return "/api";
+  }
+  return "https://taskflow-backend-4ken.onrender.com/api";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://taskflow-backend-4ken.onrender.com/api",
+  baseURL: getBaseURL(),
   headers: {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "true",

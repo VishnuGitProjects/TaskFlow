@@ -122,8 +122,6 @@
 .proj-stat-card {
   position: relative;
   background: rgba(255, 255, 255, 0.02) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 18px;
@@ -220,8 +218,6 @@
    ──────────────────────────────────────────────────────── */
 .projects-table-container {
   background: rgba(255, 255, 255, 0.02) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1);
@@ -483,8 +479,6 @@
 /* Empty Projects State */
 .empty-projects-box {
   background: rgba(255, 255, 255, 0.02) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 40px;

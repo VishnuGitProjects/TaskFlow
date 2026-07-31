@@ -24,13 +24,8 @@ export const logout = () => {
   sessionStorage.removeItem("user");
 };
 
-export const forgotPassword = async (email) => {
-  const res = await api.post("/auth/forgot-password", { email });
-  return res.data;
-};
-
-export const resetPassword = async (token, password) => {
-  const res = await api.post("/auth/reset-password", { token, password });
+export const resetPassword = async (email, password, confirmPassword) => {
+  const res = await api.post("/auth/reset-password", { email, password, confirmPassword });
   return res.data;
 };
 
@@ -41,11 +36,6 @@ export const changePassword = async (currentPassword, newPassword) => {
 
 export const updateProfile = async (data) => {
   const res = await api.put("/auth/update-profile", data);
-  return res.data;
-};
-
-export const resendVerificationEmail = async (email) => {
-  const res = await api.post("/auth/resend-verification", { email });
   return res.data;
 };
 

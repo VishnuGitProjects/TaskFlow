@@ -13,7 +13,6 @@
 .settings-sidebar {
   width: 300px;
   background: rgba(13, 14, 28, 0.45);
-  backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 16px;
@@ -84,7 +83,6 @@
 
 .settings-card {
   background: rgba(15, 23, 42, 0.25);
-  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 24px;
@@ -314,7 +312,6 @@ input:checked + .slider:before {
 
 .profile-summary-card {
   background: rgba(13, 14, 28, 0.45);
-  backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 24px;
@@ -416,7 +413,6 @@ input:checked + .slider:before {
 /* Storage Usage Block */
 .storage-card {
   background: rgba(13, 14, 28, 0.45);
-  backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 20px;

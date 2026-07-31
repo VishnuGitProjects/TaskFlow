@@ -146,8 +146,6 @@
 .reports-stat-card {
   position: relative;
   background: rgba(13, 14, 28, 0.45);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 16px;
@@ -224,8 +222,6 @@
 
 .reports-chart-card {
   background: rgba(15, 23, 42, 0.25);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 20px;
@@ -511,7 +507,6 @@
 
 .reports-team-report-card {
   background: rgba(15, 23, 42, 0.25);
-  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 20px;

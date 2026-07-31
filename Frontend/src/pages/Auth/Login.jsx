@@ -1,9 +1,8 @@
 import "../../styles/login.css";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
-import { resendVerificationEmail } from "../../services/authService";
 
 import {
   FaEnvelope,
@@ -28,59 +27,6 @@ function Login() {
   const [socialEmail, setSocialEmail] = useState("");
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [showGoogleChooser, setShowGoogleChooser] = useState(false);
-  const [verifiedMessage, setVerifiedMessage] = useState("");
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const [showResendInput, setShowResendInput] = useState(false);
-  const [resendEmail, setResendEmail] = useState("");
-  const [resendMessage, setResendMessage] = useState("");
-  const [resendError, setResendError] = useState("");
-  const [resendLoading, setResendLoading] = useState(false);
-
-  const handleResendClick = () => {
-    setResendEmail(formData.email || "");
-    setShowResendInput(true);
-    setResendMessage("");
-    setResendError("");
-  };
-
-  const handleResendSubmit = async () => {
-    if (!resendEmail || !resendEmail.trim()) {
-      setResendError("Please enter a valid email address.");
-      return;
-    }
-    try {
-      setResendLoading(true);
-      setResendError("");
-      setResendMessage("");
-      const response = await resendVerificationEmail(resendEmail.trim());
-      setResendMessage(response.message || "A new verification email has been sent.");
-      // Clear errors
-      setResendError("");
-      // Hide input after a delay
-      setTimeout(() => setShowResendInput(false), 5000);
-    } catch (err) {
-      setResendError(err.response?.data?.message || err.message || "Failed to resend verification email.");
-      setResendMessage("");
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const verified = searchParams.get("verified");
-    const errorParam = searchParams.get("error");
-    if (verified === "true") {
-      setVerifiedMessage("✅ Your email has been verified successfully. Please login.");
-      setSearchParams({}, { replace: true });
-    } else if (errorParam === "expired") {
-      setVerifiedMessage("⚠️ Verification link has expired. Please register again or request a new link.");
-      setSearchParams({}, { replace: true });
-    } else if (errorParam === "invalid") {
-      setVerifiedMessage("⚠️ Invalid verification link. Please check your link or try again.");
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
@@ -270,26 +216,6 @@ function Login() {
               </div>
             )}
 
-            {/* Success Verification Message */}
-            {verifiedMessage && (
-              <div
-                style={{
-                  background: "rgba(16, 185, 129, 0.15)",
-                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                  borderRadius: "12px",
-                  padding: "12px 16px",
-                  marginBottom: "20px",
-                  color: "#10b981",
-                  fontSize: "13.5px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                {verifiedMessage}
-              </div>
-            )}
-
             {/* Email Field */}
             <div className="form-group">
               <label className="form-label">Email Address</label>
@@ -344,43 +270,11 @@ function Login() {
                 Remember me
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                <a href="/forgot-password" className="forgot-link">
-                  Forgot Password?
+                <a href="/reset-password" className="forgot-link">
+                  Reset Password?
                 </a>
-                <span 
-                  onClick={handleResendClick} 
-                  className="forgot-link" 
-                  style={{ cursor: "pointer", fontSize: "11px", color: "#c084fc" }}
-                >
-                  Resend Verification?
-                </span>
               </div>
             </div>
-
-            {/* Resend Verification Inline Form */}
-            {showResendInput && (
-              <div className="resend-container" style={{ margin: "15px 0", padding: "14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", textAlign: "left" }}>
-                <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginBottom: "8px" }}>Enter email to resend verification link:</p>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input 
-                    type="email" 
-                    placeholder="Email address" 
-                    value={resendEmail} 
-                    onChange={(e) => setResendEmail(e.target.value)}
-                    style={{ flex: 1, padding: "8px 12px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: "13px" }}
-                  />
-                  <button 
-                    onClick={handleResendSubmit} 
-                    disabled={resendLoading}
-                    style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
-                  >
-                    {resendLoading ? "Sending..." : "Send"}
-                  </button>
-                </div>
-                {resendMessage && <p style={{ fontSize: "12px", color: "#10b981", marginTop: "8px", fontWeight: "500" }}>{resendMessage}</p>}
-                {resendError && <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "8px", fontWeight: "500" }}>{resendError}</p>}
-              </div>
-            )}
 
             {/* Login Button */}
             <button

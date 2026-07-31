@@ -116,7 +116,6 @@
 
 .tasks-stat-card {
   background: rgba(15, 22, 42, 0.35);
-  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 18px;
@@ -269,7 +268,6 @@
 /* ─── Tasks Table Container ─── */
 .tasks-table-container {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   overflow: hidden;
@@ -639,7 +637,6 @@
 /* Empty Tasks Box */
 .empty-tasks-box {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 60px 20px;
@@ -664,7 +661,6 @@
 /* ─── Expanded Task Detail Section ─── */
 .task-detail-pane {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 24px;

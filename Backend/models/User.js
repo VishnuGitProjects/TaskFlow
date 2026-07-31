@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     // Email verification fields
     isVerified: {
       type: Boolean,
-      default: false,
+      default: true,
     },
 
     verificationToken: {

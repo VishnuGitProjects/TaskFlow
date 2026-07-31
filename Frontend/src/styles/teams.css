@@ -97,7 +97,6 @@
 
 .teams-stat-card {
   background: rgba(15, 22, 42, 0.35);
-  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 18px;
@@ -195,7 +194,6 @@
 
 .team-card {
   background: rgba(15, 22, 42, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 14px;
   padding: 20px;
@@ -346,7 +344,6 @@
 
 .teams-chart-card {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 20px;
@@ -366,7 +363,6 @@
 
 .top-performing-teams-card {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 20px;
@@ -580,7 +576,6 @@
 /* Empty Teams Box */
 .empty-teams-box {
   background: rgba(10, 15, 30, 0.4);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 60px 20px;

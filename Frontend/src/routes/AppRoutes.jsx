@@ -5,7 +5,6 @@ import ProtectedRoute from "./ProtectedRoute";
 // Auth pages
 import Login         from "../pages/Auth/Login";
 import Signup        from "../pages/Auth/Signup";
-import ForgotPassword from "../pages/Auth/ForgotPassword";
 import ResetPassword  from "../pages/Auth/ResetPassword";
 
 // App pages
@@ -29,7 +28,6 @@ function AppRoutes() {
       <Route path="/"                element={<Login />} />
       <Route path="/login"           element={<Login />} />
       <Route path="/signup"          element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password"  element={<ResetPassword />} />
 
       {/* ── Protected Routes (any logged-in user) ──── */}

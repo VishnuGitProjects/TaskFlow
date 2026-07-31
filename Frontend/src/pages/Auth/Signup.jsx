@@ -143,9 +143,12 @@ function Signup() {
         confirmPassword,
       });
       setSignupSuccess(true);
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (err) {
       console.log("Signup Error:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Error creating user");
+      setError(err.response?.data?.message || err.message || "Error creating user");
     } finally {
       setLoading(false);
     }
@@ -164,9 +167,9 @@ function Signup() {
                 <FaCheck />
               </div>
             </div>
-            <h1 className="success-title">Verify Your Email</h1>
+            <h1 className="success-title">Account Created!</h1>
             <p className="success-desc" style={{ padding: "0 20px", color: "rgba(255,255,255,0.7)", fontSize: "14px", lineHeight: "1.5" }}>
-              We've sent a verification link to your email address. Please click the link in the email to verify your account before logging in.
+              Your account has been created successfully. Redirecting you to the login page...
             </p>
             <button 
               className="gradient-btn" 

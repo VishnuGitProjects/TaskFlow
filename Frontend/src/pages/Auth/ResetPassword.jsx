@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { resetPassword } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
 import "../../styles/login.css";
 
-import { FaLock, FaEyeSlash, FaEye, FaCheck, FaArrowLeft } from "react-icons/fa";
+import { FaLock, FaEyeSlash, FaEye, FaCheck, FaArrowLeft, FaEnvelope } from "react-icons/fa";
 import { MdChecklist } from "react-icons/md";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
 
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -58,12 +57,17 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!token) {
-      setError("Reset token is missing or invalid.");
+    if (!email || !email.trim()) {
+      setError("Email address is required.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address.");
       return;
     }
     if (!password || !confirmPassword) {
-      alert("Please fill in all fields.");
+      setError("Please fill in all fields.");
       return;
     }
     if (password !== confirmPassword) {
@@ -75,14 +79,14 @@ const ResetPassword = () => {
     setError(null);
 
     try {
-      await resetPassword(token, password);
+      await resetPassword(email.trim().toLowerCase(), password, confirmPassword);
       setSuccess(true);
       setTimeout(() => {
         navigate("/");
       }, 1800);
     } catch (err) {
       console.log("Reset Password Error:", err);
-      setError(err.response?.data?.message || "Failed to reset password. Token may have expired.");
+      setError(err.response?.data?.message || err.message || "Failed to reset password.");
     } finally {
       setLoading(false);
     }
@@ -164,22 +168,22 @@ const ResetPassword = () => {
                 </div>
               )}
 
-              {/* Token Alert if missing */}
-              {!token && (
-                <div
-                  style={{
-                    background: "rgba(245, 158, 11, 0.15)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    marginBottom: "20px",
-                    color: "#f59e0b",
-                    fontSize: "13.5px",
-                  }}
-                >
-                  ⚠️ Warning: No reset token found in URL parameters.
+              {/* Email Field */}
+              <div className="form-group" style={{ marginBottom: "15px" }}>
+                <label className="form-label">Email Address</label>
+                <div className="input-container">
+                  <FaEnvelope className="input-icon" />
+                  <input
+                    type="email"
+                    className="input-field"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading || success}
+                    required
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Password Field */}
               <div className="form-group">
