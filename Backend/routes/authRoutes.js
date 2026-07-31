@@ -15,6 +15,49 @@ const getClientAndBackendUrls = (req) => {
   return { clientUrl, backendUrl };
 };
 
+router.get("/verify-resend-full", async (req, res) => {
+  try {
+    const resendKey = process.env.RESEND_API_KEY ? `${process.env.RESEND_API_KEY.slice(0, 6)}...` : "MISSING";
+    const emailFrom = process.env.EMAIL_FROM || "onboarding@resend.dev";
+    
+    console.log("Testing Resend sendMail...");
+    let sendError = null;
+    let sendResult = null;
+    try {
+      sendResult = await transporter.sendMail({
+        from: emailFrom,
+        to: "yashika6.mishra@gmail.com",
+        subject: "TaskFlow Resend Diagnostic Test",
+        text: "This is a diagnostic test email to verify Resend configuration on Render.",
+      });
+    } catch (err) {
+      sendError = {
+        message: err.message,
+        code: err.code,
+        stack: err.stack,
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      env: {
+        RESEND_API_KEY: resendKey,
+        EMAIL_FROM: emailFrom,
+      },
+      resend: {
+        result: sendResult,
+        error: sendError
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      stack: err.stack,
+    });
+  }
+});
+
 // Rate limiter for verification resends to prevent spamming
 const resendVerificationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
