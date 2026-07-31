@@ -7,7 +7,7 @@ const rateLimit = require("express-rate-limit");
 dotenv.config();
 
 // ─── Environment Verification ────────────────────────────
-const requiredEnvVars = ["MONGO_URI", "JWT_SECRET", "CLIENT_URL", "BACKEND_URL", "EMAIL_USER", "EMAIL_PASS"];
+const requiredEnvVars = ["MONGO_URI", "JWT_SECRET", "CLIENT_URL", "BACKEND_URL", "RESEND_API_KEY"];
 requiredEnvVars.forEach((varName) => {
   if (!process.env[varName]) {
     console.warn(`[WARNING] Production Environment check failed: Missing ${varName}`);
