@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login as loginService, logout as logoutService, socialLogin as socialLoginService, googleOAuthLogin as googleOAuthLoginService, getCurrentUser as getCurrentUserService } from "../services/authService";
+import {
+  isAdminRole,
+  isProjectManagerRole,
+  isTeamMemberRole,
+  normalizeUser,
+} from "../app/config/roles";
 
 // ── Create the context ──────────────────────────────────
 const AuthContext = createContext(null);
@@ -12,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   // Initialize user from sessionStorage (persists on refresh)
   const [user, setUser] = useState(() => {
     const stored = sessionStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+    return stored ? normalizeUser(JSON.parse(stored)) : null;
   });
 
   const [token, setToken] = useState(() => sessionStorage.getItem("token") || null);
@@ -29,8 +35,9 @@ export const AuthProvider = ({ children }) => {
       }
       try {
         const freshUser = await getCurrentUserService();
-        setUser(freshUser);
-        sessionStorage.setItem("user", JSON.stringify(freshUser));
+        const normalizedUser = normalizeUser(freshUser);
+        setUser(normalizedUser);
+        sessionStorage.setItem("user", JSON.stringify(normalizedUser));
       } catch (err) {
         console.error("Session restoration failed:", err);
         if (err.response?.status === 401 || err.response?.status === 403) {
@@ -52,12 +59,13 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const res = await loginService(formData); // calls authService.js
+      const normalizedUser = normalizeUser(res.user);
       setToken(res.token);
-      setUser(res.user);
+      setUser(normalizedUser);
 
       // Persist to sessionStorage
       sessionStorage.setItem("token", res.token);
-      sessionStorage.setItem("user", JSON.stringify(res.user));
+      sessionStorage.setItem("user", JSON.stringify(normalizedUser));
     } catch (err) {
       const msg = err.response?.data?.message || "Login failed. Please try again.";
       setError(msg);
@@ -73,10 +81,11 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const res = await socialLoginService(socialData);
+      const normalizedUser = normalizeUser(res.user);
       setToken(res.token);
-      setUser(res.user);
+      setUser(normalizedUser);
       sessionStorage.setItem("token", res.token);
-      sessionStorage.setItem("user", JSON.stringify(res.user));
+      sessionStorage.setItem("user", JSON.stringify(normalizedUser));
     } catch (err) {
       const msg = err.response?.data?.message || "Social login failed.";
       setError(msg);
@@ -92,10 +101,11 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const res = await googleOAuthLoginService(code, redirectUri);
+      const normalizedUser = normalizeUser(res.user);
       setToken(res.token);
-      setUser(res.user);
+      setUser(normalizedUser);
       sessionStorage.setItem("token", res.token);
-      sessionStorage.setItem("user", JSON.stringify(res.user));
+      sessionStorage.setItem("user", JSON.stringify(normalizedUser));
       return res;
     } catch (err) {
       const msg = err.response?.data?.message || "Google login failed.";
@@ -117,13 +127,14 @@ export const AuthProvider = ({ children }) => {
 
   // ── Helpers ────────────────────────────────────────────
   const isAuthenticated = !!token;
-  const isAdmin         = user?.role === "admin";
-  const isManager       = user?.role === "project_manager";
-  const isMember        = user?.role === "team_member";
+  const isAdmin         = isAdminRole(user?.role);
+  const isManager       = isProjectManagerRole(user?.role);
+  const isMember        = isTeamMemberRole(user?.role);
 
   const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-    sessionStorage.setItem("user", JSON.stringify(updatedUser));
+    const normalizedUser = normalizeUser(updatedUser);
+    setUser(normalizedUser);
+    sessionStorage.setItem("user", JSON.stringify(normalizedUser));
   };
 
   return (

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { requestPasswordReset, resetPassword } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
+import { APP_CONFIG } from "../../app/config/appConfig";
 import "../../styles/login.css";
 
 import { FaLock, FaEyeSlash, FaEye, FaCheck, FaArrowLeft, FaEnvelope } from "react-icons/fa";
@@ -151,8 +152,8 @@ const ResetPassword = () => {
               <MdChecklist />
             </div>
             <div className="brand-title-box">
-              <h2 className="brand-name">TaskFlow <span>Pro</span></h2>
-              <span className="brand-subtitle">Task Management & Progress Tracker</span>
+              <h2 className="brand-name">{APP_CONFIG.appNamePrimary} <span>{APP_CONFIG.appNameAccent}</span></h2>
+              <span className="brand-subtitle">{APP_CONFIG.appTagline}</span>
             </div>
           </div>
 
@@ -326,7 +327,7 @@ const ResetPassword = () => {
         </div>
       </div>
 
-      <footer className="auth-footer">© 2025 TaskFlow Pro. All rights reserved.</footer>
+      <footer className="auth-footer">{APP_CONFIG.copyrightText}</footer>
     </div>
   );
 };

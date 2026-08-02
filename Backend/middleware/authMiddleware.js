@@ -102,29 +102,30 @@ const checkProjectPermission = (requiredPermission) => {
           "view_project", "edit_project", "delete_project", "remove_members",
           "assign_roles", "invite_members", "generate_join_code", "regenerate_join_code",
           "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "manage_settings",
-          "transfer_ownership", "leave_project"
+          "transfer_ownership", "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         admin: [
           "view_project", "edit_project", "delete_project", "remove_members",
           "assign_roles", "invite_members", "generate_join_code", "regenerate_join_code",
           "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "manage_settings",
-          "leave_project"
+          "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         project_manager: [
           "view_project", "edit_project", "remove_members", "invite_members",
-          "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "leave_project"
+          "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "leave_project",
+          "add_comments", "upload_attachments", "view_timeline"
         ],
         developer: [
-          "view_project", "create_tasks", "edit_own_tasks", "leave_project"
+          "view_project", "edit_own_tasks", "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         designer: [
-          "view_project", "create_tasks", "edit_own_tasks", "leave_project"
+          "view_project", "edit_own_tasks", "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         qa: [
-          "view_project", "create_tasks", "edit_own_tasks", "leave_project"
+          "view_project", "edit_own_tasks", "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         member: [
-          "view_project", "leave_project", "create_tasks", "edit_own_tasks"
+          "view_project", "leave_project", "edit_own_tasks", "add_comments", "upload_attachments", "view_timeline"
         ]
       };
 

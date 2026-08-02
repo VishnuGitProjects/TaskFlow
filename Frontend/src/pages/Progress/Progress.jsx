@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../layouts/MainLayout";
+import { APP_CONFIG } from "../../app/config/appConfig";
 import { getProjects } from "../../services/projectService";
 import { getTasks } from "../../services/taskService";
 import {
@@ -550,7 +551,7 @@ const Progress = () => {
                     </div>
                   ) : (
                     recentActivities.map((task) => {
-                      const projName = projects.find(p => p._id === task.project)?.name || "TaskFlow Pro";
+                      const projName = projects.find(p => p._id === task.project)?.name || APP_CONFIG.appName;
                       const date = formatDate(task.updatedAt);
                       const initials = task.title ? task.title.substring(0, 2).toUpperCase() : "TS";
                       const status = task.status === "Completed" ? "Completed" : task.status === "In Progress" ? "In Progress" : "Pending";
@@ -591,7 +592,7 @@ const Progress = () => {
                     </div>
                   ) : (
                     upcomingMilestones.map((task) => {
-                      const projName = projects.find(p => p._id === task.project)?.name || "TaskFlow Pro";
+                      const projName = projects.find(p => p._id === task.project)?.name || APP_CONFIG.appName;
                       const month = getMonthAbbr(task.dueDate);
                       const day = getDayNum(task.dueDate);
 

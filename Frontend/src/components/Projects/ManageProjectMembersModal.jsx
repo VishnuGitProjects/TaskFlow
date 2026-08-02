@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FaTrash, FaUserShield, FaCrown } from "react-icons/fa";
 import { assignMemberRole, removeMemberFromProject, transferProjectOwnership } from "../../services/projectService";
+import { getVisibleProjectMembers } from "../../app/helpers/projectPermissions";
 import "./CreateProjectModal.css";
 
 const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRefresh }) => {
@@ -9,9 +10,10 @@ const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRe
   if (!isOpen || !project) return null;
 
   const currentUserIdStr = String(currentUser?.id || currentUser?._id);
+  const visibleMembers = getVisibleProjectMembers(project);
 
   const handleRoleChange = async (memberUserId, newRole) => {
-    const memberName = project.members.find(m => String(m.user?._id || m.user) === String(memberUserId))?.user?.name || "this user";
+    const memberName = visibleMembers.find(m => String(m.user?._id || m.user) === String(memberUserId))?.user?.name || "this user";
     
     if (newRole === "owner") {
       const confirmTransfer = window.confirm(
@@ -39,7 +41,7 @@ const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRe
   };
 
   const handleRemoveMember = async (memberUserId) => {
-    const memberName = project.members.find(m => String(m.user?._id || m.user) === String(memberUserId))?.user?.name || "this user";
+    const memberName = visibleMembers.find(m => String(m.user?._id || m.user) === String(memberUserId))?.user?.name || "this user";
     const confirmRemove = window.confirm(`Are you sure you want to remove ${memberName} from this project?`);
     if (!confirmRemove) return;
 
@@ -78,7 +80,7 @@ const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRe
           </div>
 
           {/* Members list */}
-          {project.members && project.members.filter(m => String(m.user?._id || m.user) !== String(project.owner?._id || project.owner)).map((member) => {
+          {visibleMembers.map((member) => {
             const memberUser = member.user || {};
             const userId = memberUser._id || member;
             const isSelf = String(userId) === currentUserIdStr;
@@ -118,7 +120,7 @@ const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRe
             );
           })}
 
-          {project.members && project.members.filter(m => String(m.user?._id || m.user) !== String(project.owner?._id || project.owner)).length === 0 && (
+          {visibleMembers.length === 0 && (
             <p style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: "12px" }}>No other members in this project.</p>
           )}
         </div>

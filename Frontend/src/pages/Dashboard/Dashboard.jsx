@@ -313,6 +313,44 @@ const Dashboard = () => {
   const displayPending = realTasks.filter(t => t.status?.toLowerCase() !== "completed").length;
   const displayMembers = new Set(realTasks.map(t => t.assignedTo?._id || t.assignedTo).filter(Boolean)).size || 1;
   const displayOverdue = realTasks.filter(t => t.status?.toLowerCase() !== "completed" && t.dueDate && new Date(t.dueDate) < new Date()).length;
+  const assignedTasks = realTasks.filter((task) => String(task.assignedTo?._id || task.assignedTo || "") === String(user?._id));
+  const createdTasks = realTasks.filter((task) => String(task.createdBy?._id || task.createdBy || "") === String(user?._id));
+  const assignedProjects = realProjects.filter((project) => {
+    const isOwner = String(project.owner?._id || project.owner || "") === String(user?._id);
+    const isMember = (project.members || []).some((member) => String(member.user?._id || member.user || "") === String(user?._id));
+    return isOwner || isMember;
+  });
+  const todaysTasks = assignedTasks.filter((task) => {
+    if (!task.dueDate) return false;
+    return new Date(task.dueDate).toDateString() === new Date().toDateString();
+  }).length;
+  const upcomingDeadlines = assignedTasks.filter((task) => {
+    if (!task.dueDate || task.status?.toLowerCase() === "completed") return false;
+    return new Date(task.dueDate) >= new Date();
+  }).length;
+  const myCompletedTasks = assignedTasks.filter((task) => task.status?.toLowerCase() === "completed").length;
+  const myPendingTasks = assignedTasks.filter((task) => task.status?.toLowerCase() !== "completed").length;
+  const roleDashboardCards = isAdmin
+    ? [
+        { title: "Total Projects", value: displayProjects, icon: <FaFolderOpen />, trend: "12%", trendDir: "up", color: "#8b5cf6", chartData: statsChartData.projects },
+        { title: "Total Tasks", value: displayTasks, icon: <FaClipboardList />, trend: "8%", trendDir: "up", color: "#f59e0b", chartData: statsChartData.tasks },
+        { title: "Completed Tasks", value: displayCompleted, icon: <FaCheckCircle />, trend: "16%", trendDir: "up", color: "#10b981", chartData: statsChartData.completed },
+        { title: "Pending Tasks", value: displayPending, icon: <FaClock />, trend: "6%", trendDir: "down", color: "#ec4899", chartData: statsChartData.pending },
+        { title: "Team Members", value: displayMembers, icon: <FaUsers />, trend: "5%", trendDir: "up", color: "#3b82f6", chartData: statsChartData.members },
+        { title: "Project Status", value: `${displayProjects}`, icon: <FaFolderOpen />, trend: "Live", trendDir: "up", color: "#14b8a6", chartData: statsChartData.projects },
+      ]
+    : user?.role === "project_manager"
+      ? [
+          { title: "Assigned Projects", value: assignedProjects.length, icon: <FaFolderOpen />, trend: "Active", trendDir: "up", color: "#8b5cf6", chartData: statsChartData.projects },
+          { title: "Today's Tasks", value: todaysTasks, icon: <FaCalendarAlt />, trend: "Today", trendDir: "up", color: "#3b82f6", chartData: statsChartData.tasks },
+          { title: "Pending Tasks", value: myPendingTasks, icon: <FaClock />, trend: "Open", trendDir: "down", color: "#f59e0b", chartData: statsChartData.pending },
+          { title: "Overdue Tasks", value: displayOverdue, icon: <FaExclamationTriangle />, trend: "Attention", trendDir: "down", color: "#ef4444", chartData: statsChartData.overdue },
+        ]
+      : [
+          { title: "Assigned Tasks", value: assignedTasks.length, icon: <FaClipboardList />, trend: "Assigned", trendDir: "up", color: "#8b5cf6", chartData: statsChartData.tasks },
+          { title: "Upcoming Deadlines", value: upcomingDeadlines, icon: <FaCalendarAlt />, trend: "Planned", trendDir: "up", color: "#3b82f6", chartData: statsChartData.pending },
+          { title: "Completed Tasks", value: myCompletedTasks, icon: <FaCheckCircle />, trend: "Done", trendDir: "up", color: "#10b981", chartData: statsChartData.completed },
+        ];
 
   return (
     <MainLayout>
@@ -323,69 +361,34 @@ const Dashboard = () => {
             <h1>Dashboard 👋</h1>
             <p>Welcome back, {user?.name || "John"}! Here's what's happening with your projects today.</p>
           </div>
-          <div className="dashboard-date-selector">
-            <FaCalendarAlt className="cal-icon" />
-            <LiveDateTime />
-            <FaChevronDown className="chevron" />
+          <div className="dashboard-top-actions">
+            {isAdmin && (
+              <button className="dashboard-create-btn" onClick={() => setShowCreate(true)}>
+                <FaPlus /> Create Project
+              </button>
+            )}
+            <div className="dashboard-date-selector">
+              <FaCalendarAlt className="cal-icon" />
+              <LiveDateTime />
+              <FaChevronDown className="chevron" />
+            </div>
           </div>
         </div>
 
         {/* Row of 6 Stats Cards */}
         <div className="dashboard-stats-grid">
-          <StatsCard
-            title="Total Projects"
-            value={displayProjects}
-            icon={<FaFolderOpen />}
-            trend="12%"
-            trendDir="up"
-            color="#8b5cf6"
-            chartData={statsChartData.projects}
-          />
-          <StatsCard
-            title="Total Tasks"
-            value={displayTasks}
-            icon={<FaClipboardList />}
-            trend="8%"
-            trendDir="up"
-            color="#f59e0b"
-            chartData={statsChartData.tasks}
-          />
-          <StatsCard
-            title="Completed Tasks"
-            value={displayCompleted}
-            icon={<FaCheckCircle />}
-            trend="16%"
-            trendDir="up"
-            color="#10b981"
-            chartData={statsChartData.completed}
-          />
-          <StatsCard
-            title="Pending Tasks"
-            value={displayPending}
-            icon={<FaClock />}
-            trend="6%"
-            trendDir="down"
-            color="#ec4899"
-            chartData={statsChartData.pending}
-          />
-          <StatsCard
-            title="Team Members"
-            value={displayMembers}
-            icon={<FaUsers />}
-            trend="5%"
-            trendDir="up"
-            color="#3b82f6"
-            chartData={statsChartData.members}
-          />
-          <StatsCard
-            title="Overdue Tasks"
-            value={displayOverdue}
-            icon={<FaExclamationTriangle />}
-            trend="3%"
-            trendDir="down"
-            color="#ef4444"
-            chartData={statsChartData.overdue}
-          />
+          {roleDashboardCards.map((card) => (
+            <StatsCard
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              icon={card.icon}
+              trend={card.trend}
+              trendDir={card.trendDir}
+              color={card.color}
+              chartData={card.chartData}
+            />
+          ))}
         </div>
 
         {/* Middle Section: Donut Chart, Line Chart, My Tasks */}

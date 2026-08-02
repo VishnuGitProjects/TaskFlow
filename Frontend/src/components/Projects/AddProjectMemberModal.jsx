@@ -14,9 +14,21 @@ const AddProjectMemberModal = ({ isOpen, project, onClose, onAddMember }) => {
       alert("Email is required.");
       return;
     }
+
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const projectOwnerEmail = project.owner?.email?.toLowerCase();
+    const existingMemberEmails = (project.members || [])
+      .map((member) => member.user?.email?.toLowerCase())
+      .filter(Boolean);
+
+    if (normalizedEmail === projectOwnerEmail || existingMemberEmails.includes(normalizedEmail)) {
+      alert("This user is already part of the project.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await onAddMember(project._id, formData);
+      await onAddMember(project._id, { ...formData, email: normalizedEmail });
       setFormData({ email: "", role: "member" });
       onClose();
     } catch (err) {

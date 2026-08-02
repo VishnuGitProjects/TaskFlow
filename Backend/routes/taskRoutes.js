@@ -7,6 +7,9 @@ const {
   getTaskById,
   updateTask,
   deleteTask,
+  addTaskAttachment,
+  addTaskComment,
+  replyToTaskComment,
 } = require("../controllers/taskController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
@@ -25,5 +28,12 @@ router.put("/:id", protect, updateTask);
 
 // DELETE task
 router.delete("/:id", protect, deleteTask);
+
+// Attachments
+router.post("/:id/attachments", protect, addTaskAttachment);
+
+// Comments and replies
+router.post("/:id/comments", protect, addTaskComment);
+router.post("/:id/comments/:commentId/replies", protect, replyToTaskComment);
 
 module.exports = router;

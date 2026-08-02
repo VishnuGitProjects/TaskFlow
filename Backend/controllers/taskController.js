@@ -3,6 +3,15 @@ const Project = require("../models/Project");
 const User = require("../models/User");
 const { canManageTasksForProject } = require("../utils/roles");
 
+const ALLOWED_ATTACHMENT_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+];
+
 const getProjectMemberRole = (projectDoc, userId) => {
   if (String(projectDoc.owner) === String(userId)) {
     return "owner";
@@ -15,6 +24,36 @@ const getProjectMemberRole = (projectDoc, userId) => {
 
   return member?.role || null;
 };
+
+const isProjectMember = (projectDoc, userId) => {
+  if (!projectDoc) return false;
+  if (String(projectDoc.owner) === String(userId)) {
+    return true;
+  }
+
+  return projectDoc.members.some((entry) => {
+    const memberUserId = entry.user?._id || entry.user || entry._id || entry;
+    return String(memberUserId) === String(userId);
+  });
+};
+
+const canViewTask = (task, projectDoc, user) => {
+  if (user.role === "admin") return true;
+  const projectRole = getProjectMemberRole(projectDoc, user._id);
+  if (!projectRole) return false;
+  if (canManageTasksForProject(projectRole)) return true;
+  return String(task.assignedTo) === String(user._id);
+};
+
+const populateTaskDetails = async (taskDoc) =>
+  taskDoc.populate([
+    { path: "assignedTo", select: "name email avatar role" },
+    { path: "project", select: "name status" },
+    { path: "createdBy", select: "name email role" },
+    { path: "attachments.uploadedBy", select: "name email role" },
+    { path: "comments.author", select: "name email role avatar" },
+    { path: "comments.replies.author", select: "name email role avatar" },
+  ]);
 
 /* ==========================
    CREATE TASK
@@ -35,7 +74,7 @@ const createTask = async (req, res) => {
 
     const projectRole = getProjectMemberRole(projectDoc, req.user._id);
     if (req.user.role !== "admin" && !canManageTasksForProject(projectRole)) {
-      return res.status(403).json({ message: "Access denied. Only project owners or project managers can create tasks." });
+      return res.status(403).json({ message: "Access denied. Only administrators and project managers can create tasks." });
     }
 
     if (assignedTo) {
@@ -66,8 +105,7 @@ const createTask = async (req, res) => {
     });
 
     // Populate for response
-    await task.populate("assignedTo", "name email");
-    await task.populate("project", "name");
+    await populateTaskDetails(task);
 
     if (task.assignedTo) {
       const Notification = require("../models/Notification");
@@ -98,14 +136,11 @@ const getTasks = async (req, res) => {
     const filter = {};
 
     if (projectId) {
-      // Validate that user is member of project
-        const projectDoc = await Project.findById(projectId);
+      const projectDoc = await Project.findById(projectId);
       if (!projectDoc) {
         return res.status(404).json({ message: "Project not found" });
       }
-      const isOwner = String(projectDoc.owner) === String(req.user._id);
-      const isMember = projectDoc.members.some(m => String(m.user) === String(req.user._id));
-      if (req.user.role !== "admin" && !isOwner && !isMember) {
+      if (req.user.role !== "admin" && !isProjectMember(projectDoc, req.user._id)) {
         return res.status(403).json({ message: "Access denied. You are not a member of this project." });
       }
       filter.project = projectId;
@@ -123,18 +158,17 @@ const getTasks = async (req, res) => {
     if (assignedTo) filter.assignedTo = assignedTo;
     if (status) filter.status = status;
 
-    // Team members only see tasks assigned to them or created by them if querying all projects
-    if (req.user.role === "team_member" && !projectId) {
-      filter.$or = [
-        { assignedTo: req.user._id },
-        { createdBy: req.user._id }
-      ];
+    if (req.user.role === "team_member") {
+      filter.assignedTo = req.user._id;
     }
 
     const tasks = await Task.find(filter)
-      .populate("assignedTo", "name email avatar")
+      .populate("assignedTo", "name email avatar role")
       .populate("project", "name status")
-      .populate("createdBy", "name")
+      .populate("createdBy", "name email role")
+      .populate("attachments.uploadedBy", "name email role")
+      .populate("comments.author", "name email role avatar")
+      .populate("comments.replies.author", "name email role avatar")
       .sort({ createdAt: -1 });
 
     res.status(200).json(tasks);
@@ -149,9 +183,12 @@ const getTasks = async (req, res) => {
 const getTaskById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate("assignedTo", "name email avatar")
+      .populate("assignedTo", "name email avatar role")
       .populate("project", "name status")
-      .populate("createdBy", "name");
+      .populate("createdBy", "name email role")
+      .populate("attachments.uploadedBy", "name email role")
+      .populate("comments.author", "name email role avatar")
+      .populate("comments.replies.author", "name email role avatar");
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
@@ -162,10 +199,8 @@ const getTaskById = async (req, res) => {
     if (!projectDoc && req.user.role !== "admin") {
       return res.status(404).json({ message: "Project associated with this task not found" });
     }
-    const isOwner = projectDoc && String(projectDoc.owner) === String(req.user._id);
-    const isMember = projectDoc && projectDoc.members.some(m => String(m.user) === String(req.user._id));
-    if (req.user.role !== "admin" && !isOwner && !isMember) {
-      return res.status(403).json({ message: "Access denied. You do not have access to this task's project." });
+    if (!canViewTask(task, projectDoc, req.user)) {
+      return res.status(403).json({ message: "Access denied. You do not have access to this task." });
     }
 
     res.status(200).json(task);
@@ -230,7 +265,7 @@ const updateTask = async (req, res) => {
       if (description !== undefined) task.description = description;
       if (status) task.status = status;
       if (priority) task.priority = priority;
-      if (dueDate) task.dueDate = dueDate;
+      if (dueDate !== undefined) task.dueDate = dueDate;
       if (assignedTo !== undefined) task.assignedTo = assignedTo;
       if (progress !== undefined) task.progress = progress;
     }
@@ -238,7 +273,7 @@ const updateTask = async (req, res) => {
     const oldAssignedTo = task.assignedTo ? String(task.assignedTo) : null;
 
     const updated = await task.save();
-    await updated.populate("assignedTo", "name email");
+    await populateTaskDetails(updated);
 
     const newAssignedTo = updated.assignedTo ? String(updated.assignedTo._id || updated.assignedTo) : null;
     if (newAssignedTo && newAssignedTo !== oldAssignedTo) {
@@ -254,6 +289,119 @@ const updateTask = async (req, res) => {
     }
 
     res.status(200).json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const addTaskAttachment = async (req, res) => {
+  try {
+    const { filename, url, mimeType, size } = req.body;
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const projectDoc = await Project.findById(task.project);
+    if (!projectDoc || !canViewTask(task, projectDoc, req.user)) {
+      return res.status(403).json({ message: "Access denied. You cannot upload attachments to this task." });
+    }
+
+    if (!filename || !filename.trim() || !url || !url.trim()) {
+      return res.status(400).json({ message: "Filename and file data are required." });
+    }
+
+    const normalizedMimeType = (mimeType || "").toLowerCase();
+    if (!ALLOWED_ATTACHMENT_TYPES.includes(normalizedMimeType)) {
+      return res.status(400).json({ message: "Only PDF, DOC, DOCX, JPG, and PNG attachments are supported." });
+    }
+
+    task.attachments.push({
+      filename: filename.trim(),
+      url: url.trim(),
+      mimeType: normalizedMimeType,
+      size: Number(size) || 0,
+      uploadedBy: req.user._id,
+      uploadedAt: new Date(),
+    });
+
+    await task.save();
+    await populateTaskDetails(task);
+
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const addTaskComment = async (req, res) => {
+  try {
+    const { message } = req.body;
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const projectDoc = await Project.findById(task.project);
+    if (!projectDoc || !canViewTask(task, projectDoc, req.user)) {
+      return res.status(403).json({ message: "Access denied. You cannot comment on this task." });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: "Comment message is required." });
+    }
+
+    task.comments.push({
+      author: req.user._id,
+      message: message.trim(),
+      createdAt: new Date(),
+      replies: [],
+    });
+
+    await task.save();
+    await populateTaskDetails(task);
+
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const replyToTaskComment = async (req, res) => {
+  try {
+    const { message } = req.body;
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const projectDoc = await Project.findById(task.project);
+    if (!projectDoc || !canViewTask(task, projectDoc, req.user)) {
+      return res.status(403).json({ message: "Access denied. You cannot reply to comments on this task." });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: "Reply message is required." });
+    }
+
+    const comment = task.comments.id(req.params.commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found." });
+    }
+
+    comment.replies.push({
+      author: req.user._id,
+      message: message.trim(),
+      createdAt: new Date(),
+    });
+
+    await task.save();
+    await populateTaskDetails(task);
+
+    res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -292,4 +440,7 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
+  addTaskAttachment,
+  addTaskComment,
+  replyToTaskComment,
 };

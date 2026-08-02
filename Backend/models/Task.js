@@ -59,12 +59,72 @@ const taskSchema = new mongoose.Schema(
     // Attachments stored as array of file info objects
     attachments: [
       {
+        _id: {
+          type: mongoose.Schema.Types.ObjectId,
+          auto: true,
+        },
         filename: String,
         url: String,
+        mimeType: {
+          type: String,
+          default: "",
+        },
+        size: {
+          type: Number,
+          default: 0,
+        },
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
         uploadedAt: {
           type: Date,
           default: Date.now,
         },
+      },
+    ],
+    comments: [
+      {
+        _id: {
+          type: mongoose.Schema.Types.ObjectId,
+          auto: true,
+        },
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        message: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        replies: [
+          {
+            _id: {
+              type: mongoose.Schema.Types.ObjectId,
+              auto: true,
+            },
+            author: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              required: true,
+            },
+            message: {
+              type: String,
+              required: true,
+              trim: true,
+            },
+            createdAt: {
+              type: Date,
+              default: Date.now,
+            },
+          },
+        ],
       },
     ],
   },

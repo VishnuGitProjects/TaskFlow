@@ -21,6 +21,7 @@ import {
   deleteUser,
 } from "../../services/userService";
 import { getTeams } from "../../services/teamService";
+import { getRoleBadgeClass, getRoleLabel } from "../../app/helpers/userDisplay";
 import "../../styles/users.css";
 import "../../components/Projects/CreateProjectModal.css"; // Reuse modal classes
 
@@ -326,10 +327,8 @@ const Users = () => {
                       </td>
 
                       <td>
-                        <span className={`role-badge role-${
-                          user.role === "admin" ? "admin" : user.role === "project_manager" ? "manager" : "member"
-                        }`}>
-                          {user.role === "project_manager" ? "Project Manager" : user.role === "admin" ? "Administrator" : "Team Member"}
+                        <span className={`role-badge role-${getRoleBadgeClass(user.role)}`}>
+                          {getRoleLabel(user.role)}
                         </span>
                       </td>
 

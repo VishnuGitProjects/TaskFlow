@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   FaHome,
   FaFolderOpen,
@@ -14,11 +14,26 @@ import {
 } from "react-icons/fa";
 import { MdChecklist } from "react-icons/md";
 import { NavLink } from "react-router-dom";
+import { APP_CONFIG } from "../../app/config/appConfig";
+import { APP_NAVIGATION } from "../../app/config/navigation";
+import { hasRequiredRole } from "../../app/config/roles";
 import { useAuth } from "../../context/AuthContext";
 import "../../styles/sidebar.css";
 
+const iconMap = {
+  "/dashboard": <FaHome />,
+  "/projects": <FaFolderOpen />,
+  "/tasks": <FaTasks />,
+  "/teams": <FaUsers />,
+  "/users": <FaUserShield />,
+  "/progress": <FaChartLine />,
+  "/reports": <FaChartBar />,
+  "/messages": <FaRegCommentDots />,
+  "/settings": <FaCog />,
+};
+
 const Sidebar = ({ isCollapsed, onClose }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
     return parseInt(sessionStorage.getItem("unreadMessagesCount") || "0", 10);
   });
@@ -27,6 +42,7 @@ const Sidebar = ({ isCollapsed, onClose }) => {
     const handleUpdate = (e) => {
       setUnreadCount(e.detail);
     };
+
     window.addEventListener("unreadMessagesUpdate", handleUpdate);
     return () => window.removeEventListener("unreadMessagesUpdate", handleUpdate);
   }, []);
@@ -37,6 +53,11 @@ const Sidebar = ({ isCollapsed, onClose }) => {
     }
   };
 
+  const sidebarItems = APP_NAVIGATION.filter((item) => {
+    if (item.path === "/calendar") return false;
+    return hasRequiredRole(user?.role, item.roles || []);
+  });
+
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
       <div className="sidebar-logo-section">
@@ -44,8 +65,8 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <MdChecklist />
         </div>
         <div className="sidebar-logo-text">
-          <h2>TaskFlow <span>Pro</span></h2>
-          <p>Task Management & Progress Tracker</p>
+          <h2>{APP_CONFIG.appNamePrimary} <span>{APP_CONFIG.appNameAccent}</span></h2>
+          <p>{APP_CONFIG.appTagline}</p>
         </div>
         <button className="sidebar-close-btn" onClick={handleItemClick}>
           &times;
@@ -53,137 +74,59 @@ const Sidebar = ({ isCollapsed, onClose }) => {
       </div>
 
       <nav className="sidebar-menu">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaHome />
-            <span>Dashboard</span>
-          </div>
-        </NavLink>
+        {sidebarItems.map((item) => {
+          if (item.path === "/users") {
+            return (
+              <div key={item.path} className="submenu-group">
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
+                  onClick={handleItemClick}
+                >
+                  <div className="menu-item-left">
+                    {iconMap[item.path]}
+                    <span>{item.label}</span>
+                  </div>
+                  <FaChevronDown className="menu-item-arrow active" style={{ transform: "rotate(180deg)", opacity: 0.5 }} />
+                </NavLink>
+                <div className="sidebar-submenu">
+                  <NavLink
+                    to="/users"
+                    className={({ isActive }) => (isActive ? "submenu-item active" : "submenu-item")}
+                    onClick={handleItemClick}
+                  >
+                    <span className="submenu-dot">â€¢</span> Users
+                  </NavLink>
+                </div>
+              </div>
+            );
+          }
 
-        <NavLink
-          to="/projects"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaFolderOpen />
-            <span>Projects</span>
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
-
-        <NavLink
-          to="/tasks"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaTasks />
-            <span>Tasks</span>
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
-
-        {isAdmin && (
-          <NavLink
-            to="/teams"
-            className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-            onClick={handleItemClick}
-          >
-            <div className="menu-item-left">
-              <FaUsers />
-              <span>Team Management</span>
-            </div>
-            <FaChevronRight className="menu-item-arrow" />
-          </NavLink>
-        )}
-
-        {isAdmin && (
-          <div className="submenu-group">
+          return (
             <NavLink
-              to="/users"
+              key={item.path}
+              to={item.path}
               className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
               onClick={handleItemClick}
             >
               <div className="menu-item-left">
-                <FaUserShield />
-                <span>User Management</span>
+                {iconMap[item.path]}
+                <span>{item.label}</span>
+                {item.path === "/messages" && unreadCount > 0 && (
+                  <div className="sidebar-badge">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </div>
+                )}
               </div>
-              <FaChevronDown className="menu-item-arrow active" style={{ transform: "rotate(180deg)", opacity: 0.5 }} />
+              {item.path !== "/dashboard" && <FaChevronRight className="menu-item-arrow" />}
             </NavLink>
-            <div className="sidebar-submenu">
-              <NavLink
-                to="/users"
-                className={({ isActive }) => (isActive ? "submenu-item active" : "submenu-item")}
-                onClick={handleItemClick}
-              >
-                <span className="submenu-dot">•</span> Users
-              </NavLink>
-            </div>
-          </div>
-        )}
-
-        <NavLink
-          to="/progress"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaChartLine />
-            <span>Progress Tracking</span>
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
-
-        <NavLink
-          to="/reports"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaChartBar />
-            <span>Reports</span>
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
-
-        <NavLink
-          to="/messages"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaRegCommentDots />
-            <span>Messages</span>
-            {unreadCount > 0 && (
-              <div className="sidebar-badge">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </div>
-            )}
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
-
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-          onClick={handleItemClick}
-        >
-          <div className="menu-item-left">
-            <FaCog />
-            <span>Settings</span>
-          </div>
-          <FaChevronRight className="menu-item-arrow" />
-        </NavLink>
+          );
+        })}
       </nav>
 
       <div className="sidebar-promo-container">
         <div className="sidebar-copyright" style={{ marginTop: 0 }}>
-          © 2025 TaskFlow Pro
+          {APP_CONFIG.shortCopyrightText}
         </div>
       </div>
     </aside>

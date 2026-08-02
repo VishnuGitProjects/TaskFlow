@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../layouts/MainLayout";
+import { APP_CONFIG } from "../../app/config/appConfig";
 import { useAuth } from "../../context/AuthContext";
 import { getProjects } from "../../services/projectService";
 import { getTeams } from "../../services/teamService";
@@ -561,7 +562,7 @@ const Settings = () => {
 
       {/* Settings Footer */}
       <div className="settings-footer">
-        <span>© 2025 TaskFlow Pro. All rights reserved.</span>
+        <span>{APP_CONFIG.copyrightText}</span>
         <div className="settings-footer-links">
           <span>Privacy Policy</span>
           <span>Terms of Service</span>

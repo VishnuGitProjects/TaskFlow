@@ -24,3 +24,18 @@ export const deleteTask = async (id) => {
   const res = await api.delete(`/tasks/${id}`);
   return res.data;
 };
+
+export const addTaskAttachment = async (id, data) => {
+  const res = await api.post(`/tasks/${id}/attachments`, data);
+  return res.data;
+};
+
+export const addTaskComment = async (id, data) => {
+  const res = await api.post(`/tasks/${id}/comments`, data);
+  return res.data;
+};
+
+export const replyToTaskComment = async (id, commentId, data) => {
+  const res = await api.post(`/tasks/${id}/comments/${commentId}/replies`, data);
+  return res.data;
+};

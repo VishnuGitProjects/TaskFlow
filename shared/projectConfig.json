@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "TaskFlow Pro",
+    "namePrimary": "TaskFlow",
+    "nameAccent": "Pro",
+    "tagline": "Task Management & Progress Tracker",
+    "authHeadline": {
+      "primary": "Plan. Track.",
+      "secondary": "Collaborate.",
+      "accent": "Achieve More."
+    },
+    "authDescription": "Streamline your projects, manage tasks, and boost team productivity with",
+    "loginSubtitle": "Sign in to continue to your account",
+    "signupSubtitle": "Join TaskFlow Pro and start organizing work.",
+    "copyright": "© 2025 TaskFlow Pro. All rights reserved.",
+    "shortCopyright": "© 2025 TaskFlow Pro",
+    "privacyLabel": "Privacy Policy",
+    "termsLabel": "Terms of Service"
+  },
+  "adminSeed": {
+    "name": "TaskFlow Admin",
+    "email": "admin@taskflow.local",
+    "role": "admin"
+  }
+}

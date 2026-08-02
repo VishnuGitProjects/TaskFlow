@@ -8,28 +8,13 @@ import { getProjects } from "../../services/projectService";
 import { getTasks } from "../../services/taskService";
 import { getUsers } from "../../services/userService";
 import { getTeams } from "../../services/teamService";
+import { SEARCHABLE_NAVIGATION } from "../../app/config/navigation";
+import { hasRequiredRole, isAdminRole } from "../../app/config/roles";
 import "../../styles/navbar.css";
-
-const getNavigationRoutes = (isAdmin) => [
-  { name: "Dashboard", path: "/dashboard" },
-  { name: "Projects", path: "/projects" },
-  { name: "Tasks", path: "/tasks" },
-  ...(isAdmin
-    ? [
-        { name: "Teams", path: "/teams" },
-        { name: "Users", path: "/users" },
-      ]
-    : []),
-  { name: "Calendar", path: "/calendar" },
-  { name: "Settings", path: "/settings" },
-  { name: "Progress Tracking", path: "/progress" },
-  { name: "Reports", path: "/reports" },
-  { name: "Messages", path: "/messages" },
-];
 
 const Navbar = ({ onToggleSidebar }) => {
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminRole(user?.role);
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -143,7 +128,8 @@ const Navbar = ({ onToggleSidebar }) => {
     const q = searchQuery.toLowerCase().trim();
 
     // 1. Navigation matches
-    const navMatches = getNavigationRoutes(isAdmin)
+    const navMatches = SEARCHABLE_NAVIGATION
+      .filter((route) => hasRequiredRole(user?.role, route.roles || []))
       .filter((route) => route.name.toLowerCase().includes(q))
       .map((route) => ({
         name: route.name,
@@ -176,7 +162,7 @@ const Navbar = ({ onToggleSidebar }) => {
     const combined = [...navMatches, ...projectMatches, ...taskMatches, ...userMatches, ...teamMatches];
 
     setSearchResults(combined.slice(0, 8)); // Limit to 8 items
-  }, [searchQuery, allData, isAdmin]);
+  }, [searchQuery, allData, isAdmin, user?.role]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 

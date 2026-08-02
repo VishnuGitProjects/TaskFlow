@@ -33,6 +33,13 @@ import {
 } from "../../services/projectService";
 import { getUsers } from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
+import {
+  canDeleteProject,
+  canInviteProjectMembers,
+  canManageProject,
+  getAssignedProjectManager,
+  getVisibleProjectMembers,
+} from "../../app/helpers/projectPermissions";
 import "../../styles/projectDetails.css";
 
 const ProjectDetails = () => {
@@ -103,16 +110,15 @@ const ProjectDetails = () => {
   }
 
   const { project, role, stats, tasks, activityLogs, attachments } = projectData;
-  const assignedProjectManager =
-    (project.members || []).find((member) => member.role === "project_manager")?.user || project.owner;
-  const visibleMembers = (project.members || []).filter(
-    (member) => String(member.user?._id || member.user) !== String(project.owner?._id || project.owner)
-  );
+  const assignedProjectManager = getAssignedProjectManager(project);
+  const visibleMembers = getVisibleProjectMembers(project);
 
   // Check project role privileges
-  const isOwnerOrAdmin = role === "owner" || isAdmin;
+  const isOwnerOrAdmin = canManageProject(project, user);
   const isProjManager = role === "project_manager";
   const isTeamMember = !isOwnerOrAdmin && !isProjManager;
+  const canDeleteCurrentProject = canDeleteProject(project, user);
+  const canInviteMembers = canInviteProjectMembers(project, user);
 
   // Format dates helper
   const formatDate = (dateStr) => {
@@ -233,15 +239,21 @@ const ProjectDetails = () => {
                 <button className="action-btn-details btn-blue" onClick={() => setShowEditModal(true)}>
                   <FaEdit /> Edit Project
                 </button>
-                <button className="action-btn-details btn-green" onClick={() => setShowAddMemberModal(true)}>
-                  <FaUserPlus /> Invite Member
-                </button>
-                <button className="action-btn-details btn-purple" onClick={() => setShowManageMembersModal(true)}>
-                  <FaUsers /> Manage Team
-                </button>
-                <button className="action-btn-details btn-red" onClick={handleDelete}>
-                  <FaTrashAlt /> Delete Project
-                </button>
+                {canInviteMembers && (
+                  <>
+                    <button className="action-btn-details btn-green" onClick={() => setShowAddMemberModal(true)}>
+                      <FaUserPlus /> Invite Member
+                    </button>
+                    <button className="action-btn-details btn-purple" onClick={() => setShowManageMembersModal(true)}>
+                      <FaUsers /> Manage Team
+                    </button>
+                  </>
+                )}
+                {canDeleteCurrentProject && (
+                  <button className="action-btn-details btn-red" onClick={handleDelete}>
+                    <FaTrashAlt /> Delete Project
+                  </button>
+                )}
               </>
             )}
 
@@ -376,7 +388,7 @@ const ProjectDetails = () => {
                     onChange={handleStatusChange}
                     disabled={updatingStatus}
                   >
-                    <option value="Not Started">Not Started</option>
+                    <option value="Planning">Planning</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Completed">Completed</option>
                     <option value="On Hold">On Hold</option>

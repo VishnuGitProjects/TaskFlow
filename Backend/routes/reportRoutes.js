@@ -1,12 +1,12 @@
 const express = require("express");
 const PDFDocument = require("pdfkit");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/authMiddleware");
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 
 const router = express.Router();
 
-router.get("/export", protect, async (req, res) => {
+router.get("/export", protect, authorize("admin", "project_manager"), async (req, res) => {
   try {
     const { projectId, startDate, endDate } = req.query;
 

@@ -27,10 +27,14 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  addTaskAttachment,
+  addTaskComment,
+  replyToTaskComment,
 } from "../../services/taskService";
 import { getProjects } from "../../services/projectService";
 import { getUsers } from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
+import { canManageProject } from "../../app/helpers/projectPermissions";
 import "../../styles/tasks.css";
 
 const Tasks = () => {
@@ -48,6 +52,9 @@ const Tasks = () => {
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   // Form States
   const [formData, setFormData] = useState({
@@ -133,35 +140,17 @@ const Tasks = () => {
 
   const filteredTasksList = getFilteredTasks();
 
+  const canManageProjectTasks = (project) => {
+    return canManageProject(project, user);
+  };
+
   // Stats Counters
   const totalCount = tasks.length;
   const todoCount = tasks.filter((t) => t.status === "To Do").length;
   const inProgressCount = tasks.filter((t) => t.status === "In Progress").length;
   const reviewCount = tasks.filter((t) => t.status === "Review").length;
   const completedCount = tasks.filter((t) => t.status === "Completed").length;
-
-  // Actions
-  const getProjectRoleForUser = (project) => {
-    if (!project || !user) return null;
-    if (user.role === "admin") return "owner";
-
-    const ownerId = String(project.owner?._id || project.owner || "");
-    if (ownerId === String(user._id)) {
-      return "owner";
-    }
-
-    const membership = (project.members || []).find((member) => {
-      const memberId = member.user?._id || member.user || member._id || member;
-      return String(memberId) === String(user._id);
-    });
-
-    return membership?.role || null;
-  };
-
-  const canManageProjectTasks = (project) => {
-    const role = getProjectRoleForUser(project);
-    return ["owner", "admin", "project_manager"].includes(role);
-  };
+  const manageableProjects = projects.filter((project) => canManageProjectTasks(project));
 
   const getProjectAssignees = (targetProjectId) => {
     const projId = targetProjectId || formData.project;
@@ -188,7 +177,7 @@ const Tasks = () => {
   };
 
   const handleOpenCreate = () => {
-    const firstProjId = projects[0]?._id || "";
+    const firstProjId = manageableProjects[0]?._id || "";
     const assignees = getProjectAssignees(firstProjId);
     setFormData({
       title: "",
@@ -261,7 +250,35 @@ const Tasks = () => {
   };
 
   const canCreateTask = () => {
-    return projects.some((project) => canManageProjectTasks(project));
+    return manageableProjects.length > 0;
+  };
+
+  const canEditTask = (task) => {
+    if (!task) return false;
+
+    const projectId = task.project?._id || task.project;
+    const project = projects.find((item) => String(item._id) === String(projectId));
+    if (canManageProjectTasks(project)) {
+      return true;
+    }
+
+    return String(task.assignedTo?._id || task.assignedTo || "") === String(user?._id);
+  };
+
+  const canEditTaskMetadata = () => {
+    return isOwnerOrAdmin();
+  };
+
+  const canEditTaskStatus = () => {
+    if (!editingTask) {
+      return isOwnerOrAdmin();
+    }
+
+    if (isOwnerOrAdmin()) {
+      return true;
+    }
+
+    return String(editingTask.assignedTo?._id || editingTask.assignedTo || "") === String(user?._id);
   };
 
   const handleDelete = async (id) => {
@@ -274,6 +291,81 @@ const Tasks = () => {
       loadData();
     } catch (error) {
       alert(error.response?.data?.message || "Failed to delete task");
+    }
+  };
+
+  const syncTaskInState = (updatedTask) => {
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
+    );
+    setSelectedTask(updatedTask);
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedTask || !commentText.trim()) return;
+    try {
+      const updatedTask = await addTaskComment(selectedTask._id, { message: commentText.trim() });
+      syncTaskInState(updatedTask);
+      setCommentText("");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to add comment");
+    }
+  };
+
+  const handleReplyToComment = async (commentId) => {
+    const replyMessage = (replyDrafts[commentId] || "").trim();
+    if (!selectedTask || !replyMessage) return;
+
+    try {
+      const updatedTask = await replyToTaskComment(selectedTask._id, commentId, { message: replyMessage });
+      syncTaskInState(updatedTask);
+      setReplyDrafts((current) => ({ ...current, [commentId]: "" }));
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to add reply");
+    }
+  };
+
+  const handleAttachmentUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedTask) return;
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Only PDF, DOC, DOCX, JPG, and PNG files are supported.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setUploadingAttachment(true);
+      const fileDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const updatedTask = await addTaskAttachment(selectedTask._id, {
+        filename: file.name,
+        url: fileDataUrl,
+        mimeType: file.type,
+        size: file.size,
+      });
+
+      syncTaskInState(updatedTask);
+      event.target.value = "";
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to upload attachment");
+    } finally {
+      setUploadingAttachment(false);
     }
   };
 
@@ -490,9 +582,11 @@ const Tasks = () => {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="table-actions-cell">
-                          <button className="table-action-btn" onClick={() => handleOpenEdit(task)}>
-                            <FaPen />
-                          </button>
+                          {canEditTask(task) && (
+                            <button className="table-action-btn" onClick={() => handleOpenEdit(task)}>
+                              <FaPen />
+                            </button>
+                          )}
                           {isProjectOwnerForTask(task) && (
                             <button className="table-action-btn btn-delete" onClick={() => handleDelete(task._id)}>
                               <FaTrash />
@@ -586,7 +680,10 @@ const Tasks = () => {
                         <div className="attachment-file-row" key={fIdx}>
                           <div className="attachment-info">
                             <span className="attachment-name">{file.filename}</span>
-                            <span className="attachment-size">Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</span>
+                            <span className="attachment-size">
+                              Uploaded {new Date(file.uploadedAt).toLocaleDateString()}
+                              {file.uploadedBy?.name ? ` by ${file.uploadedBy.name}` : ""}
+                            </span>
                           </div>
                           <a href={file.url} download className="attachment-download-btn" target="_blank" rel="noreferrer">
                             <FaDownload />
@@ -596,9 +693,107 @@ const Tasks = () => {
                     )}
                   </div>
                   <div style={{ marginTop: "12px" }}>
-                    <div className="file-drop-area">
-                      <span>Drag & drop files here or <strong>browse</strong></span>
+                    <label className="file-drop-area" style={{ cursor: "pointer" }}>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        style={{ display: "none" }}
+                        onChange={handleAttachmentUpload}
+                        disabled={uploadingAttachment}
+                      />
+                      <span>{uploadingAttachment ? "Uploading attachment..." : "Upload PDF, DOC, DOCX, JPG, or PNG"}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="attachments-section">
+                  <h4>Comments</h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <textarea
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Add a comment for the team..."
+                      style={{
+                        minHeight: "90px",
+                        borderRadius: "12px",
+                        background: "rgba(15,23,42,0.7)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        color: "#fff",
+                        padding: "14px",
+                        resize: "vertical",
+                      }}
+                    />
+                    <div>
+                      <button className="btn-create-task" onClick={handleAddComment}>
+                        <FaCheck /> Post Comment
+                      </button>
                     </div>
+                    {!selectedTask.comments || selectedTask.comments.length === 0 ? (
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "13.5px" }}>No comments yet.</span>
+                    ) : (
+                      selectedTask.comments.map((comment) => (
+                        <div
+                          key={comment._id}
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: "14px",
+                            padding: "14px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "8px" }}>
+                            <strong style={{ color: "#fff" }}>{comment.author?.name || "Team Member"}</strong>
+                            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>
+                              {new Date(comment.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p style={{ color: "rgba(255,255,255,0.75)", margin: 0 }}>{comment.message}</p>
+
+                          <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {(comment.replies || []).map((reply) => (
+                              <div
+                                key={reply._id}
+                                style={{
+                                  marginLeft: "16px",
+                                  paddingLeft: "12px",
+                                  borderLeft: "2px solid rgba(59,130,246,0.45)",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "6px" }}>
+                                  <strong style={{ color: "#dbeafe", fontSize: "13px" }}>{reply.author?.name || "Team Member"}</strong>
+                                  <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>
+                                    {new Date(reply.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                <p style={{ color: "rgba(255,255,255,0.7)", margin: 0, fontSize: "13px" }}>{reply.message}</p>
+                              </div>
+                            ))}
+
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                              <input
+                                type="text"
+                                value={replyDrafts[comment._id] || ""}
+                                onChange={(e) =>
+                                  setReplyDrafts((current) => ({ ...current, [comment._id]: e.target.value }))
+                                }
+                                placeholder="Reply to this comment"
+                                style={{
+                                  flex: 1,
+                                  padding: "10px 12px",
+                                  borderRadius: "10px",
+                                  background: "rgba(15,23,42,0.7)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  color: "#fff",
+                                }}
+                              />
+                              <button className="btn-filter-task" onClick={() => handleReplyToComment(comment._id)}>
+                                Reply
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -696,7 +891,7 @@ const Tasks = () => {
                     placeholder="Enter task title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    disabled={!isOwnerOrAdmin()}
+                    disabled={!canEditTaskMetadata()}
                   />
                 </div>
 
@@ -707,7 +902,7 @@ const Tasks = () => {
                     placeholder="Enter task guidelines..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    disabled={!isOwnerOrAdmin()}
+                    disabled={!canEditTaskMetadata()}
                   ></textarea>
                 </div>
 
@@ -725,9 +920,9 @@ const Tasks = () => {
                           assignedTo: assignees[0]?._id || "",
                         });
                       }}
-                      disabled={!isOwnerOrAdmin()}
+                      disabled={!canEditTaskMetadata()}
                     >
-                      {projects.map((proj) => (
+                      {(editingTask ? projects : manageableProjects).map((proj) => (
                         <option key={proj._id} value={proj._id}>{proj.name}</option>
                       ))}
                     </select>
@@ -738,7 +933,7 @@ const Tasks = () => {
                     <select
                       value={formData.assignedTo}
                       onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                      disabled={!isOwnerOrAdmin()}
+                      disabled={!canEditTaskMetadata()}
                     >
                       {getProjectAssignees().map((userItem) => (
                         <option key={userItem._id} value={userItem._id}>{userItem.name}</option>
@@ -753,7 +948,7 @@ const Tasks = () => {
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                      disabled={!isOwnerOrAdmin()}
+                      disabled={!canEditTaskMetadata()}
                     >
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
@@ -767,6 +962,7 @@ const Tasks = () => {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      disabled={!canEditTaskStatus()}
                     >
                       <option value="To Do">To Do</option>
                       <option value="In Progress">In Progress</option>
@@ -784,7 +980,7 @@ const Tasks = () => {
                       required
                       value={formData.dueDate}
                       onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                      disabled={!isOwnerOrAdmin()}
+                      disabled={!canEditTaskMetadata()}
                     />
                   </div>
 
@@ -807,6 +1003,7 @@ const Tasks = () => {
                           }
                         }
                       }}
+                      disabled={!canEditTaskStatus()}
                     />
                   </div>
                 </div>

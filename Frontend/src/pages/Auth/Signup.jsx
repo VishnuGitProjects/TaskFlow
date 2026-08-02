@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { register } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
+import { APP_CONFIG } from "../../app/config/appConfig";
 import "../../styles/login.css";
 
 import {
@@ -190,19 +191,19 @@ function Signup() {
               <MdChecklist />
             </div>
             <div className="brand-title-box">
-              <h2 className="brand-name">TaskFlow <span>Pro</span></h2>
-              <span className="brand-subtitle">Task Management & Progress Tracker</span>
+              <h2 className="brand-name">{APP_CONFIG.appNamePrimary} <span>{APP_CONFIG.appNameAccent}</span></h2>
+              <span className="brand-subtitle">{APP_CONFIG.appTagline}</span>
             </div>
           </div>
 
           <h1 className="branding-headline">
-            Plan. Track.
-            <span>Collaborate.</span>
-            <span className="gradient-achieve">Achieve More.</span>
+            {APP_CONFIG.authHeadline.primary}
+            <span>{APP_CONFIG.authHeadline.secondary}</span>
+            <span className="gradient-achieve">{APP_CONFIG.authHeadline.accent}</span>
           </h1>
 
           <p className="branding-desc">
-            Streamline your projects, manage tasks, and boost team productivity with <span>TaskFlow Pro.</span>
+            {APP_CONFIG.authDescription} <span>{APP_CONFIG.appName}.</span>
           </p>
 
           <AuthGraphic mode="signup" />
@@ -212,7 +213,7 @@ function Signup() {
         <div className="login-right">
           <div className="glass-card">
             <h2 className="form-title">Create Account 👋</h2>
-            <p className="form-subtitle">Join TaskFlow Pro and start organizing work.</p>
+            <p className="form-subtitle">{APP_CONFIG.signupSubtitle}</p>
 
             {/* Error Message */}
             {error && (
@@ -370,12 +371,12 @@ function Signup() {
                     <MdChecklist style={{ fontSize: "28px", color: "#fff" }} />
                   </div>
                   <h1 style={{ fontSize: "36px", fontWeight: "400", color: "#fff", lineHeight: "1.2", marginBottom: "12px" }}>Choose an account</h1>
-                  <p style={{ fontSize: "16px", color: "#c4c7c5" }}>to continue to <strong style={{ color: "#3b82f6" }}>TaskFlow Pro</strong></p>
+                  <p style={{ fontSize: "16px", color: "#c4c7c5" }}>to continue to <strong style={{ color: "#3b82f6" }}>{APP_CONFIG.appName}</strong></p>
                 </div>
               </div>
 
               <div style={{ fontSize: "12px", color: "#8e918f", lineHeight: "1.5" }}>
-                Before using this app, you can review TaskFlow Pro's <a href="#" style={{ color: "#a8c7fa", textDecoration: "none" }}>Privacy Policy</a> and <a href="#" style={{ color: "#a8c7fa", textDecoration: "none" }}>Terms of Service</a>.
+                Before using this app, you can review {APP_CONFIG.appName}'s <a href="#" style={{ color: "#a8c7fa", textDecoration: "none" }}>{APP_CONFIG.privacyLabel}</a> and <a href="#" style={{ color: "#a8c7fa", textDecoration: "none" }}>{APP_CONFIG.termsLabel}</a>.
               </div>
             </div>
 
@@ -493,7 +494,7 @@ function Signup() {
 
       {/* Footer Copyright */}
       <footer className="auth-footer">
-        © 2025 TaskFlow Pro. All rights reserved.
+        {APP_CONFIG.copyrightText}
       </footer>
     </div>
   );

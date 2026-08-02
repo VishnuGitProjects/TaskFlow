@@ -38,6 +38,13 @@ import { getTasks } from "../../services/taskService";
 import { getUsers } from "../../services/userService";
 
 import { useAuth } from "../../context/AuthContext";
+import {
+  canDeleteProject,
+  canInviteProjectMembers,
+  canRegenerateInviteCode,
+  getAssignedProjectManager,
+  getVisibleProjectMembers,
+} from "../../app/helpers/projectPermissions";
 import "../../styles/projects.css";
 
 const Projects = () => {
@@ -182,11 +189,6 @@ const Projects = () => {
   const completedCount = countByStatus("Completed") || countByStatus("completed") || 0;
   const onHoldCount = countByStatus("On Hold") || countByStatus("on_hold") || 0;
   const cancelledCount = countByStatus("Cancelled") || countByStatus("cancelled") || 0;
-  const getAssignedProjectManager = (project) => {
-    const managerMember = (project.members || []).find((member) => member.role === "project_manager");
-    return managerMember?.user || project.owner;
-  };
-
   return (
     <MainLayout>
       <div className="projects-page-wrapper">
@@ -332,9 +334,10 @@ const Projects = () => {
                   const statusText = project.status || "In Progress";
                   const progressVal = project.progress !== undefined ? project.progress : 0;
                   const assignedManager = getAssignedProjectManager(project);
-                  const visibleMembers = (project.members || []).filter(
-                    (member) => String(member.user?._id || member.user) !== String(project.owner?._id || project.owner)
-                  );
+                  const visibleMembers = getVisibleProjectMembers(project);
+                  const canManageMembers = canInviteProjectMembers(project, user);
+                  const canDeleteCurrentProject = canDeleteProject(project, user);
+                  const canRegenerateCode = canRegenerateInviteCode(project, user);
 
                   return (
                     <tr key={project._id} onClick={() => navigate(`/projects/${project._id}`)} style={{ cursor: "pointer" }}>
@@ -366,7 +369,7 @@ const Projects = () => {
                                 >
                                   Copy
                                 </button>
-                                {String(project.owner?._id || project.owner) === String(user?.id || user?._id) && (
+                                {canRegenerateCode && (
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation();
@@ -479,7 +482,7 @@ const Projects = () => {
                             <FaEye />
                           </button>
 
-                          {String(project.owner?._id || project.owner) === String(user?.id || user?._id) || user?.role === "admin" ? (
+                          {canManageMembers ? (
                             <>
                               <button
                                 className="act-btn btn-edit"
@@ -504,13 +507,15 @@ const Projects = () => {
                               >
                                 <FaUsers />
                               </button>
-                              <button
-                                className="act-btn btn-delete"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteProject(project._id); }}
-                                title="Delete Project"
-                              >
-                                <FaTrash />
-                              </button>
+                              {canDeleteCurrentProject && (
+                                <button
+                                  className="act-btn btn-delete"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteProject(project._id); }}
+                                  title="Delete Project"
+                                >
+                                  <FaTrash />
+                                </button>
+                              )}
                             </>
                           ) : (
                             <button
