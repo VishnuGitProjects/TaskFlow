@@ -17,8 +17,6 @@ import {
   FaCheck,
   FaPause,
   FaTimes,
-  FaChevronLeft,
-  FaChevronRight,
   FaUserPlus,
   FaUsers,
   FaSignOutAlt,
@@ -30,18 +28,16 @@ import {
   updateProject,
   deleteProject,
   addMemberToProject,
-  joinProject,
-  regenerateInviteCode,
   leaveProject,
 } from "../../services/projectService";
 import { getTasks } from "../../services/taskService";
 import { getUsers } from "../../services/userService";
+import { getTeams } from "../../services/teamService";
 
 import { useAuth } from "../../context/AuthContext";
 import {
   canDeleteProject,
   canInviteProjectMembers,
-  canRegenerateInviteCode,
   getAssignedProjectManager,
   getVisibleProjectMembers,
 } from "../../app/helpers/projectPermissions";
@@ -51,16 +47,15 @@ const Projects = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
 
-  const [projects, setProjects]         = useState([]);
-  const [tasks, setTasks]               = useState([]);
-  const [users, setUsers]               = useState([]);
-  const [loading, setLoading]           = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreate] = useState(false);
   const [editingProject, setEditProject] = useState(null);
   const [memberAssigningProject, setMemberAssigningProject] = useState(null);
   const [managingMembersProject, setManagingMembersProject] = useState(null);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
 
   const handleLeaveProject = async (projectId) => {
     if (!window.confirm("Are you sure you want to leave this project?")) return;
@@ -75,65 +70,47 @@ const Projects = () => {
 
   const handleAddMemberToProject = async (projectId, memberData) => {
     try {
-      const updatedProject = await addMemberToProject(projectId, memberData);
-      setProjects(projects.map((p) => (p._id === projectId ? updatedProject : p)));
+      await addMemberToProject(projectId, memberData);
       alert("Member added to project successfully!");
-      loadProjects(); // reload to sync users lists
+      loadProjects();
     } catch (error) {
       alert(error.response?.data?.message || "Failed to add member to project.");
     }
   };
 
-  const handleJoinProject = async () => {
-    if (!inviteCode.trim()) {
-      alert("Invite code is required.");
-      return;
-    }
-    try {
-      await joinProject(inviteCode.trim());
-      alert("Successfully joined the project!");
-      setShowJoinModal(false);
-      setInviteCode("");
-      loadProjects();
-    } catch (error) {
-      alert(error.response?.data?.message || "Failed to join project. Check the code.");
-    }
-  };
-
-  /* ── Load projects ─────────────────────────────── */
   const loadProjects = async () => {
     try {
       setLoading(true);
-      
-      let projectsData = [];
-      try {
-        projectsData = await getProjects();
-      } catch (err) {
-        console.error("Failed to load projects:", err);
-      }
 
-      let tasksData = [];
-      try {
-        tasksData = await getTasks();
-      } catch (err) {
-        console.error("Failed to load tasks:", err);
-      }
-
-      let usersData = [];
-      try {
-        usersData = await getUsers();
-      } catch (err) {
-        console.error("Failed to load users:", err);
-      }
+      const [projectsData, tasksData, usersData, teamsData] = await Promise.all([
+        getProjects().catch((err) => {
+          console.error("Failed to load projects:", err);
+          return [];
+        }),
+        getTasks().catch((err) => {
+          console.error("Failed to load tasks:", err);
+          return [];
+        }),
+        getUsers().catch((err) => {
+          console.error("Failed to load users:", err);
+          return [];
+        }),
+        getTeams().catch((err) => {
+          console.error("Failed to load teams:", err);
+          return [];
+        }),
+      ]);
 
       setProjects(Array.isArray(projectsData) ? projectsData : []);
       setTasks(Array.isArray(tasksData) ? tasksData : []);
       setUsers(Array.isArray(usersData) ? usersData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } catch (error) {
       console.error("Failed to load data:", error);
       setProjects([]);
       setTasks([]);
       setUsers([]);
+      setTeams([]);
     } finally {
       setLoading(false);
     }
@@ -143,7 +120,6 @@ const Projects = () => {
     loadProjects();
   }, []);
 
-  /* ── Create ──────────────────────────────────────── */
   const handleCreateProject = async (formData) => {
     try {
       await createProject(formData);
@@ -155,7 +131,6 @@ const Projects = () => {
     }
   };
 
-  /* ── Edit ────────────────────────────────────────── */
   const handleEditProject = async (id, formData) => {
     try {
       await updateProject(id, formData);
@@ -167,7 +142,6 @@ const Projects = () => {
     }
   };
 
-  /* ── Delete ──────────────────────────────────────── */
   const handleDeleteProject = async (id) => {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
@@ -179,20 +153,18 @@ const Projects = () => {
     }
   };
 
-  // Status counters matching reference counts or dynamically loaded ones
-  const countByStatus = (statusName) => {
-    return projects.filter(p => p.status?.toLowerCase().replace("_", " ") === statusName.toLowerCase()).length;
-  };
+  const countByStatus = (statusName) =>
+    projects.filter((project) => project.status?.toLowerCase().replace("_", " ") === statusName.toLowerCase()).length;
 
   const totalCount = projects.length;
-  const inProgressCount = countByStatus("In Progress") || countByStatus("in_progress") || 0;
-  const completedCount = countByStatus("Completed") || countByStatus("completed") || 0;
-  const onHoldCount = countByStatus("On Hold") || countByStatus("on_hold") || 0;
-  const cancelledCount = countByStatus("Cancelled") || countByStatus("cancelled") || 0;
+  const inProgressCount = countByStatus("In Progress");
+  const completedCount = countByStatus("Completed");
+  const onHoldCount = countByStatus("On Hold");
+  const cancelledCount = countByStatus("Cancelled");
+
   return (
     <MainLayout>
       <div className="projects-page-wrapper">
-        {/* Title, Breadcrumb & Actions Header */}
         <div className="projects-header-section">
           <div className="breadcrumb-section">
             <h1>Project Management</h1>
@@ -201,9 +173,6 @@ const Projects = () => {
             </p>
           </div>
           <div className="projects-actions">
-            <button className="create-project-btn" style={{ marginRight: "10px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", boxShadow: "0 4px 15px rgba(16, 185, 129, 0.25)" }} onClick={() => setShowJoinModal(true)}>
-              <FaPlus /> Join Project
-            </button>
             {isAdmin && (
               <button className="create-project-btn" onClick={() => setShowCreate(true)}>
                 <FaPlus /> Create Project
@@ -218,7 +187,6 @@ const Projects = () => {
           </div>
         </div>
 
-        {/* Stats Grid (Row of 5 status cards) */}
         <div className="projects-stats-grid">
           <div className="proj-stat-card stat-purple">
             <div className="stat-card-left">
@@ -271,7 +239,6 @@ const Projects = () => {
           </div>
         </div>
 
-        {/* Projects Table List */}
         {loading ? (
           <div className="empty-projects-box">
             <p>Loading projects...</p>
@@ -279,11 +246,7 @@ const Projects = () => {
         ) : projects.length === 0 ? (
           <div className="empty-projects-box">
             <h2>No Projects Found</h2>
-            <p>
-              {isAdmin
-                ? "Click \"Create Project\" to add your first project."
-                : "No projects have been assigned to you yet."}
-            </p>
+            <p>{isAdmin ? 'Click "Create Project" to add your first project.' : "No projects have been assigned to you yet."}</p>
           </div>
         ) : (
           <div className="projects-table-container">
@@ -303,33 +266,27 @@ const Projects = () => {
               </thead>
               <tbody>
                 {projects.map((project) => {
-                  // Generate color matching the name hash
                   const colors = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"];
                   const nameChar = project.name ? project.name.charCodeAt(0) : 65;
                   const color = colors[nameChar % colors.length];
-
-                  // Initials
                   const initials = project.name
                     ? project.name
                         .split(" ")
-                        .map((w) => w[0])
+                        .map((word) => word[0])
                         .join("")
                         .substring(0, 2)
                         .toUpperCase()
                     : "PR";
 
-                  // Format dates
                   const formatDate = (dateStr) => {
                     if (!dateStr) return "N/A";
-                    const date = new Date(dateStr);
-                    return date.toLocaleDateString("en-US", {
+                    return new Date(dateStr).toLocaleDateString("en-US", {
                       month: "short",
                       day: "2-digit",
                       year: "numeric",
                     });
                   };
 
-                  // Priority pill classes
                   const priority = project.priority || "Medium";
                   const statusText = project.status || "In Progress";
                   const progressVal = project.progress !== undefined ? project.progress : 0;
@@ -337,71 +294,25 @@ const Projects = () => {
                   const visibleMembers = getVisibleProjectMembers(project);
                   const canManageMembers = canInviteProjectMembers(project, user);
                   const canDeleteCurrentProject = canDeleteProject(project, user);
-                  const canRegenerateCode = canRegenerateInviteCode(project, user);
 
                   return (
                     <tr key={project._id} onClick={() => navigate(`/projects/${project._id}`)} style={{ cursor: "pointer" }}>
-                      {/* Project Badge + Title & Description */}
                       <td>
                         <div className="table-project-meta">
-                          <div
-                            className="project-avatar-badge"
-                            style={{ background: `${color}15`, color: color }}
-                          >
+                          <div className="project-avatar-badge" style={{ background: `${color}15`, color }}>
                             {initials}
                           </div>
                           <div className="project-info-text">
                             <h4 style={{ color: "#fff", textDecoration: "none" }} className="project-name-link">{project.name}</h4>
                             <p>{project.description || "No description provided."}</p>
-                            {project.inviteCode && (
-                              <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
-                                <span style={{ fontSize: "11.5px", background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "4px", color: "#a5b4fc", fontFamily: "monospace" }}>
-                                  Code: {project.inviteCode}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(project.inviteCode);
-                                    alert("Invite code copied!");
-                                  }}
-                                  style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "10.5px", padding: 0 }}
-                                  title="Copy Invite Code"
-                                >
-                                  Copy
-                                </button>
-                                {canRegenerateCode && (
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (window.confirm("Are you sure you want to regenerate the invite code?")) {
-                                        try {
-                                          await regenerateInviteCode(project._id);
-                                          alert("Invite code regenerated!");
-                                          loadProjects();
-                                        } catch (error) {
-                                          alert(error.response?.data?.message || "Failed to regenerate invite code");
-                                        }
-                                      }
-                                    }}
-                                    style={{ background: "transparent", border: "none", color: "#a78bfa", cursor: "pointer", fontSize: "10.5px", padding: 0 }}
-                                    title="Regenerate Invite Code"
-                                  >
-                                    Regenerate
-                                  </button>
-                                )}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Project Manager Column */}
                       <td>
                         <div className="table-manager-cell">
                           <div className="manager-avatar">
-                            {assignedManager?.name
-                              ? assignedManager.name.substring(0, 2).toUpperCase()
-                              : "UA"}
+                            {assignedManager?.name ? assignedManager.name.substring(0, 2).toUpperCase() : "UA"}
                           </div>
                           <div className="manager-info">
                             <h4>{assignedManager?.name || "Unassigned"}</h4>
@@ -410,73 +321,52 @@ const Projects = () => {
                         </div>
                       </td>
 
-                      {/* Team Avatar Stack */}
                       <td>
-                        {visibleMembers.length === 0 ? (
-                           <span style={{ color: "rgba(255,255,255,0.3)", paddingLeft: "10px" }}>—</span>
+                        {!project.team ? (
+                          <span style={{ color: "rgba(255,255,255,0.3)", paddingLeft: "10px" }}>No team assigned</span>
                         ) : (
-                          <div className="table-team-avatars">
-                            <div className="team-avatar-stack">
-                              {visibleMembers.slice(0, 3).map((member, mIdx) => {
-                                const u = member.user || {};
-                                const displayName = u.name || "Member";
-                                return (
-                                  <span key={member._id || u._id} className={`team-circle circle-${(mIdx % 3) + 1}`} title={displayName}>
-                                    {u.name ? u.name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2) : "U"}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                            {visibleMembers.length > 3 && (
-                              <span className="team-more-badge">+{visibleMembers.length - 3}</span>
-                            )}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <strong style={{ color: "#fff", fontSize: "13px" }}>{project.team.name}</strong>
+                            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>
+                              {visibleMembers.length + (assignedManager ? 1 : 0)} assigned
+                            </span>
                           </div>
                         )}
                       </td>
 
-                      {/* Dates */}
                       <td>{formatDate(project.startDate)}</td>
                       <td>{formatDate(project.endDate)}</td>
 
-                      {/* Priority */}
                       <td>
                         <span className={`priority-badge priority-${priority.toLowerCase()}`}>
                           {priority}
                         </span>
                       </td>
 
-                      {/* Status dot */}
                       <td>
                         <div className="status-cell">
-                          <span
-                            className={`status-dot status-${statusText
-                              .toLowerCase()
-                              .replace(" ", "-")}`}
-                          ></span>
+                          <span className={`status-dot status-${statusText.toLowerCase().replace(" ", "-")}`}></span>
                           <span>{statusText}</span>
                         </div>
                       </td>
 
-                      {/* Progress bar */}
                       <td>
                         <div className="progress-cell">
                           <span className="progress-value-text">{progressVal}%</span>
                           <div className="table-progress-bar-bg">
-                            <div
-                              className="table-progress-bar-fill"
-                              style={{ width: `${progressVal}%`, background: color }}
-                            ></div>
+                            <div className="table-progress-bar-fill" style={{ width: `${progressVal}%`, background: color }}></div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Actions */}
                       <td>
                         <div className="table-actions-cell" onClick={(e) => e.stopPropagation()}>
-                          {/* All users can view project tasks */}
                           <button
                             className="act-btn btn-view"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/tasks?projectId=${project._id}`); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/tasks?projectId=${project._id}`);
+                            }}
                             title="View Project Tasks"
                           >
                             <FaEye />
@@ -486,7 +376,10 @@ const Projects = () => {
                             <>
                               <button
                                 className="act-btn btn-edit"
-                                onClick={(e) => { e.stopPropagation(); setEditProject(project); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditProject(project);
+                                }}
                                 title="Edit Project"
                               >
                                 <FaPen />
@@ -494,7 +387,10 @@ const Projects = () => {
                               <button
                                 className="act-btn"
                                 style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981" }}
-                                onClick={(e) => { e.stopPropagation(); setMemberAssigningProject(project); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMemberAssigningProject(project);
+                                }}
                                 title="Add Member by Email"
                               >
                                 <FaUserPlus />
@@ -502,7 +398,10 @@ const Projects = () => {
                               <button
                                 className="act-btn"
                                 style={{ background: "rgba(139, 92, 246, 0.12)", color: "#8b5cf6" }}
-                                onClick={(e) => { e.stopPropagation(); setManagingMembersProject(project); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setManagingMembersProject(project);
+                                }}
                                 title="Manage Members & Roles"
                               >
                                 <FaUsers />
@@ -510,7 +409,10 @@ const Projects = () => {
                               {canDeleteCurrentProject && (
                                 <button
                                   className="act-btn btn-delete"
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteProject(project._id); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project._id);
+                                  }}
                                   title="Delete Project"
                                 >
                                   <FaTrash />
@@ -521,7 +423,10 @@ const Projects = () => {
                             <button
                               className="act-btn"
                               style={{ background: "rgba(239, 68, 68, 0.12)", color: "#ef4444" }}
-                              onClick={(e) => { e.stopPropagation(); handleLeaveProject(project._id); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLeaveProject(project._id);
+                              }}
                               title="Leave Project"
                             >
                               <FaSignOutAlt />
@@ -536,19 +441,16 @@ const Projects = () => {
             </table>
           </div>
         )}
-
-
       </div>
 
-      {/* Create Modal */}
       <CreateProjectModal
         isOpen={showCreateModal}
         onClose={() => setShowCreate(false)}
         onCreate={handleCreateProject}
         users={users}
+        teams={teams}
       />
 
-      {/* Edit Modal */}
       {editingProject && (
         <EditProjectModal
           isOpen={!!editingProject}
@@ -556,10 +458,10 @@ const Projects = () => {
           onClose={() => setEditProject(null)}
           onUpdate={handleEditProject}
           users={users}
+          teams={teams}
         />
       )}
 
-      {/* Add Member Modal */}
       {memberAssigningProject && (
         <AddProjectMemberModal
           isOpen={!!memberAssigningProject}
@@ -569,34 +471,6 @@ const Projects = () => {
         />
       )}
 
-      {/* Join Project Modal */}
-      {showJoinModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: "400px" }}>
-            <h2>Join Project</h2>
-            <p style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "16px", lineHeight: "1.5" }}>
-              Enter the unique 8-character invite code of the project you want to join.
-            </p>
-            <input
-              type="text"
-              placeholder="Enter Invite Code (e.g. B83F9D8E)"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              style={{ textTransform: "uppercase" }}
-            />
-            <div className="modal-buttons" style={{ marginTop: "20px" }}>
-              <button className="cancel-btn" onClick={() => { setShowJoinModal(false); setInviteCode(""); }}>
-                Cancel
-              </button>
-              <button className="create-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }} onClick={handleJoinProject}>
-                Join Project
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manage Members Modal */}
       {managingMembersProject && (
         <ManageProjectMembersModal
           isOpen={!!managingMembersProject}

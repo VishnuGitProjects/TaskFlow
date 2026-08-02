@@ -7,8 +7,6 @@ const {
   updateProject,
   deleteProject,
   addMemberToProject,
-  regenerateInviteCode,
-  joinProjectByCode,
   assignMemberRole,
   leaveProject,
   removeMemberFromProject,
@@ -18,9 +16,6 @@ const {
 } = require("../controllers/projectController");
 
 const { protect, authorize, checkProjectPermission } = require("../middleware/authMiddleware");
-
-// Join Project by Invite Code (registered before /:id)
-router.post("/join", protect, joinProjectByCode);
 
 // Create Project
 router.post("/", protect, authorize("admin"), createProject);
@@ -39,9 +34,6 @@ router.delete("/:id", protect, checkProjectPermission("delete_project"), deleteP
 
 // Add Member to Project by Email
 router.post("/:id/members", protect, checkProjectPermission("invite_members"), addMemberToProject);
-
-// Regenerate Invite Code
-router.post("/:id/regenerate-code", protect, checkProjectPermission("regenerate_join_code"), regenerateInviteCode);
 
 // Assign Member Role
 router.post("/:id/members/role", protect, checkProjectPermission("assign_roles"), assignMemberRole);

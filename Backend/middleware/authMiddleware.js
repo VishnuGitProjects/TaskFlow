@@ -100,18 +100,18 @@ const checkProjectPermission = (requiredPermission) => {
       const permissionMatrix = {
         owner: [
           "view_project", "edit_project", "delete_project", "remove_members",
-          "assign_roles", "invite_members", "generate_join_code", "regenerate_join_code",
+          "assign_roles", "invite_members",
           "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "manage_settings",
           "transfer_ownership", "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         admin: [
           "view_project", "edit_project", "delete_project", "remove_members",
-          "assign_roles", "invite_members", "generate_join_code", "regenerate_join_code",
+          "assign_roles", "invite_members",
           "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "manage_settings",
           "leave_project", "add_comments", "upload_attachments", "view_timeline"
         ],
         project_manager: [
-          "view_project", "edit_project", "remove_members", "invite_members",
+          "view_project", "edit_project",
           "create_tasks", "edit_all_tasks", "delete_tasks", "manage_reports", "leave_project",
           "add_comments", "upload_attachments", "view_timeline"
         ],

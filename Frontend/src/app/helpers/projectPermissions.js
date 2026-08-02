@@ -29,14 +29,10 @@ export const canManageProject = (project, user) => {
   return PROJECT_MANAGEMENT_ROLES.includes(role);
 };
 
-export const canInviteProjectMembers = (project, user) => canManageProject(project, user);
+export const canInviteProjectMembers = (project, user) => isAdminRole(user?.role);
+export const canAssignProjectTeam = (project, user) => isAdminRole(user?.role);
 
 export const canDeleteProject = (project, user) => {
-  const role = getProjectMemberRole(project, user);
-  return ["owner", "admin"].includes(role);
-};
-
-export const canRegenerateInviteCode = (project, user) => {
   const role = getProjectMemberRole(project, user);
   return ["owner", "admin"].includes(role);
 };

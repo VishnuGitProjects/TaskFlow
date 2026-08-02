@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./CreateProjectModal.css";
 
-const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [] }) => {
+const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] }) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -10,14 +10,54 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [] }) => {
     startDate: "",
     endDate: "",
     progress: 0,
+    team: "",
     members: [],
   });
 
+  const teamMemberIds = useMemo(() => {
+    const selectedTeam = teams.find((team) => team._id === formData.team);
+    if (!selectedTeam) return [];
+
+    const ids = [];
+    if (selectedTeam.manager?._id || selectedTeam.manager) {
+      ids.push(String(selectedTeam.manager?._id || selectedTeam.manager));
+    }
+    (selectedTeam.members || []).forEach((member) => {
+      ids.push(String(member._id || member));
+    });
+
+    return [...new Set(ids)];
+  }, [formData.team, teams]);
+
   const handleChange = (e) => {
+    if (e.target.name === "team") {
+      const nextTeamId = e.target.value;
+      const selectedTeam = teams.find((team) => team._id === nextTeamId);
+      const nextTeamMembers = [];
+
+      if (selectedTeam?.manager?._id || selectedTeam?.manager) {
+        nextTeamMembers.push(String(selectedTeam.manager?._id || selectedTeam.manager));
+      }
+      (selectedTeam?.members || []).forEach((member) => {
+        nextTeamMembers.push(String(member._id || member));
+      });
+
+      setFormData({
+        ...formData,
+        team: nextTeamId,
+        members: [...new Set(nextTeamMembers)],
+      });
+      return;
+    }
+
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleToggleMember = (userId) => {
+    if (teamMemberIds.includes(String(userId))) {
+      return;
+    }
+
     const isSelected = formData.members.includes(userId);
     if (isSelected) {
       setFormData({
@@ -50,6 +90,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [] }) => {
       startDate: "",
       endDate: "",
       progress: 0,
+      team: "",
       members: [],
     });
   };
@@ -133,6 +174,20 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [] }) => {
           </div>
         </div>
 
+        <div className="modal-row">
+          <div className="modal-col">
+            <label style={{ color: "#94a3b8", fontSize: "12.5px" }}>Assign Team</label>
+            <select name="team" value={formData.team} onChange={handleChange}>
+              <option value="">No Team</option>
+              {teams.map((team) => (
+                <option key={team._id} value={team._id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <label style={{ color: "#94a3b8", fontSize: "13px", marginTop: "8px" }}>Assign Team Members</label>
         <div style={{
           maxHeight: "100px",
@@ -152,8 +207,9 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [] }) => {
                 type="checkbox"
                 checked={formData.members.includes(userItem._id)}
                 onChange={() => handleToggleMember(userItem._id)}
+                disabled={teamMemberIds.includes(String(userItem._id))}
               />
-              <span>{userItem.name} ({userItem.role})</span>
+              <span>{userItem.name} ({userItem.role}){teamMemberIds.includes(String(userItem._id)) ? " - from team" : ""}</span>
             </label>
           ))}
         </div>

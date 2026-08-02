@@ -28,16 +28,6 @@ export const addMemberToProject = async (id, memberData) => {
   return res.data;
 };
 
-export const joinProject = async (inviteCode) => {
-  const res = await api.post("/projects/join", { inviteCode });
-  return res.data;
-};
-
-export const regenerateInviteCode = async (id) => {
-  const res = await api.post(`/projects/${id}/regenerate-code`);
-  return res.data;
-};
-
 export const assignMemberRole = async (id, userId, role) => {
   const res = await api.post(`/projects/${id}/members/role`, { userId, role });
   return res.data;

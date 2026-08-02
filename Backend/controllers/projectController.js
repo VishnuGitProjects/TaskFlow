@@ -1,26 +1,57 @@
 const Project = require("../models/Project");
-const crypto = require("crypto");
 const User = require("../models/User");
+const Team = require("../models/Team");
 const {
   PROJECT_MEMBER_ROLES,
   normalizeProjectRole,
 } = require("../utils/roles");
 
-const generateUniqueInviteCode = async () => {
-  let isUnique = false;
-  let code = "";
-  while (!isUnique) {
-    code = crypto.randomBytes(4).toString("hex").toUpperCase();
-    const existing = await Project.findOne({ inviteCode: code });
-    if (!existing) {
-      isUnique = true;
-    }
-  }
-  return code;
-};
-
 const getGlobalRoleFromProjectRole = (projectRole) => {
   return projectRole === "project_manager" ? "project_manager" : "team_member";
+};
+
+const buildMembersFromTeamAndUsers = async ({ teamId, memberIds = [], ownerId }) => {
+  const normalizedMemberIds = [...new Set((Array.isArray(memberIds) ? memberIds : []).map((id) => String(id)).filter(Boolean))];
+  const users = await User.find({ _id: { $in: normalizedMemberIds } }).select("_id");
+  const memberMap = new Map();
+
+  users.forEach((user) => {
+    if (String(user._id) !== String(ownerId)) {
+      memberMap.set(String(user._id), {
+        user: user._id,
+        role: "member",
+      });
+    }
+  });
+
+  let team = null;
+  if (teamId) {
+    team = await Team.findById(teamId).populate("manager", "_id role").populate("members", "_id role");
+    if (!team) {
+      throw new Error("Assigned team not found.");
+    }
+
+    if (team.manager && String(team.manager._id) !== String(ownerId)) {
+      memberMap.set(String(team.manager._id), {
+        user: team.manager._id,
+        role: "project_manager",
+      });
+    }
+
+    (team.members || []).forEach((member) => {
+      if (String(member._id) !== String(ownerId) && String(member._id) !== String(team.manager?._id || "")) {
+        memberMap.set(String(member._id), {
+          user: member._id,
+          role: "member",
+        });
+      }
+    });
+  }
+
+  return {
+    team,
+    members: Array.from(memberMap.values()),
+  };
 };
 
 /* ==========================
@@ -38,19 +69,14 @@ const createProject = async (req, res) => {
       endDate,
       progress,
       members = [],
+      team: teamId = null,
     } = req.body;
 
-    const inviteCode = await generateUniqueInviteCode();
-    const memberIds = Array.isArray(members) ? members : [];
-    const uniqueMemberIds = [...new Set(memberIds.map((memberId) => String(memberId)).filter(Boolean))];
-    const existingMembers = await User.find({ _id: { $in: uniqueMemberIds } }).select("_id");
-
-    const normalizedMembers = existingMembers
-      .filter((user) => String(user._id) !== String(req.user._id))
-      .map((user) => ({
-        user: user._id,
-        role: "member",
-      }));
+    const { members: normalizedMembers } = await buildMembersFromTeamAndUsers({
+      teamId,
+      memberIds: members,
+      ownerId: req.user._id,
+    });
 
     const project = await Project.create({
       name,
@@ -62,11 +88,12 @@ const createProject = async (req, res) => {
       progress: progress || 0,
       members: normalizedMembers,
       owner: req.user._id,
-      inviteCode,
+      team: teamId || null,
     });
 
     await project.populate("owner", "name email");
     await project.populate("members.user", "name email role");
+    await project.populate("team", "name description");
 
     res.status(201).json(project);
   } catch (error) {
@@ -89,6 +116,7 @@ const getProjects = async (req, res) => {
     const projects = await Project.find(query)
       .populate("owner", "name email")
       .populate("members.user", "name email role")
+      .populate("team", "name description manager members")
       .sort({ createdAt: -1 });
     res.status(200).json(projects);
   } catch (error) {
@@ -102,7 +130,7 @@ const updateProject = async (req, res) => {
   try {
     const project = req.project;
 
-    const { name, description, status, priority, startDate, endDate, progress } = req.body;
+    const { name, description, status, priority, startDate, endDate, progress, members, team: teamId } = req.body;
     if (name) project.name = name;
     if (description !== undefined) project.description = description;
     if (status) project.status = status;
@@ -110,10 +138,23 @@ const updateProject = async (req, res) => {
     if (startDate) project.startDate = startDate;
     if (endDate) project.endDate = endDate;
     if (progress !== undefined) project.progress = progress;
+    if (members !== undefined || teamId !== undefined) {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Only administrators can assign teams or reassign project members." });
+      }
+      const { members: normalizedMembers } = await buildMembersFromTeamAndUsers({
+        teamId: teamId || null,
+        memberIds: members !== undefined ? members : project.members.map((member) => member.user?._id || member.user),
+        ownerId: project.owner,
+      });
+      project.members = normalizedMembers;
+      project.team = teamId || null;
+    }
 
     await project.save();
     await project.populate("owner", "name email");
     await project.populate("members.user", "name email role");
+    await project.populate("team", "name description");
 
     res.json(project);
   } catch (error) {
@@ -206,77 +247,6 @@ const addMemberToProject = async (req, res) => {
         relatedId: project._id
       });
     }
-
-    await project.populate("owner", "name email");
-    await project.populate("members.user", "name email role");
-
-    res.status(200).json(project);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/* ==========================
-   REGENERATE INVITE CODE
-========================== */
-const regenerateInviteCode = async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    // Only project owner can regenerate the code
-    if (String(project.owner) !== String(req.user._id)) {
-      return res.status(403).json({ message: "Not authorized to regenerate invite code for this project" });
-    }
-
-    const newCode = await generateUniqueInviteCode();
-    project.inviteCode = newCode;
-    await project.save();
-
-    res.status(200).json({ inviteCode: newCode });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/* ==========================
-   JOIN PROJECT BY INVITE CODE
-========================== */
-const joinProjectByCode = async (req, res) => {
-  try {
-    const { inviteCode } = req.body;
-    if (!inviteCode) {
-      return res.status(400).json({ message: "Invite code is required" });
-    }
-
-    const project = await Project.findOne({ inviteCode: inviteCode.toUpperCase() });
-    if (!project) {
-      return res.status(404).json({ message: "Invalid invite code" });
-    }
-
-    // Prevent duplicate: check if user is owner or already a member
-    const userIdStr = String(req.user._id);
-    const isOwner = String(project.owner) === userIdStr;
-    const isMember = project.members.some(m => String(m.user || m) === userIdStr);
-
-    if (isOwner || isMember) {
-      return res.status(400).json({ message: "You are already a member of this project" });
-    }
-
-    project.members.push({ user: req.user._id, role: "member" });
-    await project.save();
-
-    const Notification = require("../models/Notification");
-    await Notification.create({
-      recipient: project.owner,
-      sender: req.user._id,
-      type: "project_joined",
-      title: "Member Joined Project",
-      message: `${req.user.name} has joined your project "${project.name}" using the invite code.`,
-      relatedId: project._id
-    });
 
     await project.populate("owner", "name email");
     await project.populate("members.user", "name email role");
@@ -485,7 +455,8 @@ const getProjectById = async (req, res) => {
 
     const project = await Project.findById(req.params.id)
       .populate("owner", "name email role")
-      .populate("members.user", "name email role");
+      .populate("members.user", "name email role")
+      .populate("team", "name description manager members");
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
@@ -560,8 +531,6 @@ module.exports = {
   updateProject,
   deleteProject,
   addMemberToProject,
-  regenerateInviteCode,
-  joinProjectByCode,
   assignMemberRole,
   leaveProject,
   removeMemberFromProject,
