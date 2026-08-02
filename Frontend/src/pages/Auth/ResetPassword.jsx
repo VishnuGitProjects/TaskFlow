@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { resetPassword } from "../../services/authService";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { requestPasswordReset, resetPassword } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import AuthGraphic from "../../components/AuthGraphic";
 import "../../styles/login.css";
@@ -8,15 +8,26 @@ import "../../styles/login.css";
 import { FaLock, FaEyeSlash, FaEye, FaCheck, FaArrowLeft, FaEnvelope } from "react-icons/fa";
 import { MdChecklist } from "react-icons/md";
 
+const PASSWORD_POLICY_MESSAGE =
+  "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character.";
+
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
+
+  const resetToken = searchParams.get("token") || "";
+  const isResetMode = Boolean(resetToken);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [resetLink, setResetLink] = useState("");
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
@@ -24,52 +35,71 @@ const ResetPassword = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-  const [strength, setStrength] = useState("Weak");
-  const [strengthPercent, setStrengthPercent] = useState(33);
-
-  // Simple Password Strength Evaluator
-  useEffect(() => {
+  const { strength, strengthPercent } = useMemo(() => {
     if (!password) {
-      setStrength("Weak");
-      setStrengthPercent(15);
-      return;
+      return { strength: "Weak", strengthPercent: 15 };
     }
 
-    const hasLetters = /[a-zA-Z]/.test(password);
-    const hasDigits = /[0-9]/.test(password);
-    const hasSpecial = /[^a-zA-Z0-9]/.test(password);
-    const len = password.length;
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasDigit = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    if (len >= 8 && hasLetters && hasDigits && hasSpecial) {
-      setStrength("Strong");
-      setStrengthPercent(100);
-    } else if (len >= 6 && hasLetters && hasDigits) {
-      setStrength("Medium");
-      setStrengthPercent(66);
-    } else {
-      setStrength("Weak");
-      setStrengthPercent(33);
+    if (password.length >= 8 && hasLower && hasUpper && hasDigit && hasSpecial) {
+      return { strength: "Strong", strengthPercent: 100 };
     }
+
+    if (password.length >= 6 && hasLower && hasDigit) {
+      return { strength: "Medium", strengthPercent: 66 };
+    }
+
+    return { strength: "Weak", strengthPercent: 33 };
   }, [password]);
 
-  const handleSubmit = async (e) => {
+  const handleRequestReset = async (e) => {
     e.preventDefault();
-    if (!email || !email.trim()) {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail) {
       setError("Email address is required.");
       return;
     }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(trimmedEmail)) {
       setError("Please enter a valid email address.");
       return;
     }
+
+    setLoading(true);
+    setError(null);
+    setResetLink("");
+
+    try {
+      const response = await requestPasswordReset(trimmedEmail);
+      setSuccess(true);
+      setResetLink(response.resetUrl || "");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to request password reset.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
     if (!password || !confirmPassword) {
-      setError("Please fill in all fields.");
+      setError("Please fill in both password fields.");
       return;
     }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      setError(PASSWORD_POLICY_MESSAGE);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -79,14 +109,11 @@ const ResetPassword = () => {
     setError(null);
 
     try {
-      await resetPassword(email.trim().toLowerCase(), password, confirmPassword);
+      await resetPassword(resetToken, password, confirmPassword);
       setSuccess(true);
-      setTimeout(() => {
-        navigate("/");
-      }, 1800);
+      setTimeout(() => navigate("/login"), 1800);
     } catch (err) {
-      console.log("Reset Password Error:", err);
-      setError(err.response?.data?.message || err.message || "Failed to reset password.");
+      setError(err.response?.data?.message || "Failed to reset password.");
     } finally {
       setLoading(false);
     }
@@ -94,8 +121,7 @@ const ResetPassword = () => {
 
   return (
     <div className="login-page">
-      {/* Success Redirect Overlay */}
-      {success && (
+      {success && isResetMode && (
         <div className="success-overlay">
           <div className="success-container">
             <div className="success-icon-wrapper">
@@ -119,7 +145,6 @@ const ResetPassword = () => {
       )}
 
       <div className="login-container">
-        {/* Left Side - Branding */}
         <div className="login-left">
           <div className="brand-header">
             <div className="brand-logo-container">
@@ -132,141 +157,165 @@ const ResetPassword = () => {
           </div>
 
           <h1 className="branding-headline">
-            Reset Your
-            <span>Credentials.</span>
-            <span className="gradient-achieve">Secure Access.</span>
+            {isResetMode ? "Create a" : "Recover Your"}
+            <span>{isResetMode ? " New Password." : " Account Access."}</span>
+            <span className="gradient-achieve">{isResetMode ? "Stay Secure." : "Reset Safely."}</span>
           </h1>
 
           <p className="branding-desc">
-            Choose a strong password containing letters, digits, and special characters to protect your account.
+            {isResetMode
+              ? "Choose a strong password before this secure reset link expires."
+              : "Enter your email and we will send a secure password reset link if your account exists."}
           </p>
 
           <AuthGraphic mode="reset" />
         </div>
 
-        {/* Right Side - Reset Password Form Card */}
         <div className="login-right">
           <div className="glass-card">
-            <h2 className="form-title">Reset Password 🔑</h2>
-            <p className="form-subtitle">Enter your new password below.</p>
+            <h2 className="form-title">{isResetMode ? "Set New Password" : "Forgot Password?"}</h2>
+            <p className="form-subtitle">
+              {isResetMode ? "Enter your new password below." : "Request a secure password reset link."}
+            </p>
 
-            <form onSubmit={handleSubmit}>
-              {/* Error Message */}
-              {error && (
-                <div
-                  style={{
-                    background: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    marginBottom: "20px",
-                    color: "#ef4444",
-                    fontSize: "13.5px",
-                  }}
-                >
-                  ⚠️ {error}
-                </div>
-              )}
-
-              {/* Email Field */}
-              <div className="form-group" style={{ marginBottom: "15px" }}>
-                <label className="form-label">Email Address</label>
-                <div className="input-container">
-                  <FaEnvelope className="input-icon" />
-                  <input
-                    type="email"
-                    className="input-field"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading || success}
-                    required
-                  />
-                </div>
+            {error && (
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "12px",
+                  padding: "12px 16px",
+                  marginBottom: "20px",
+                  color: "#ef4444",
+                  fontSize: "13.5px",
+                }}
+              >
+                {error}
               </div>
+            )}
 
-              {/* Password Field */}
-              <div className="form-group">
-                <label className="form-label">New Password</label>
-                <div className="input-container">
-                  <FaLock className="input-icon" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className="input-field"
-                    placeholder="Enter new password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading || success}
-                  />
-                  <span
-                    className="input-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </span>
-                </div>
-
-                {/* Password Strength Meter */}
-                {password && (
-                  <div className="strength-meter">
-                    <div className="strength-bar-container">
-                      <div
-                        className="strength-bar"
-                        style={{
-                          width: `${strengthPercent}%`,
-                          backgroundColor:
-                            strength === "Strong"
-                              ? "#10b981"
-                              : strength === "Medium"
-                              ? "#f59e0b"
-                              : "#f43f5e",
-                        }}
-                      ></div>
-                    </div>
-                    <div className="strength-label">
-                      <span style={{ color: "rgba(255,255,255,0.4)" }}>Password Strength:</span>
-                      <span className={`strength-${strength}`}>{strength}</span>
-                    </div>
+            {!isResetMode && success && (
+              <div
+                style={{
+                  background: "rgba(16, 185, 129, 0.14)",
+                  border: "1px solid rgba(16, 185, 129, 0.28)",
+                  borderRadius: "12px",
+                  padding: "12px 16px",
+                  marginBottom: "20px",
+                  color: "#a7f3d0",
+                  fontSize: "13.5px",
+                  lineHeight: "1.5",
+                }}
+              >
+                If an account exists for that email, a reset link has been sent.
+                {resetLink && (
+                  <div style={{ marginTop: "8px" }}>
+                    Development reset link: <a href={resetLink} style={{ color: "#fff" }}>{resetLink}</a>
                   </div>
                 )}
               </div>
+            )}
 
-              {/* Confirm Password Field */}
-              <div className="form-group" style={{ marginTop: "10px" }}>
-                <label className="form-label">Confirm New Password</label>
-                <div className="input-container">
-                  <FaLock className="input-icon" />
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    className="input-field"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading || success}
-                  />
-                  <span
-                    className="input-toggle"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                  </span>
+            <form onSubmit={isResetMode ? handleResetPassword : handleRequestReset}>
+              {!isResetMode && (
+                <div className="form-group" style={{ marginBottom: "18px" }}>
+                  <label className="form-label">Email Address</label>
+                  <div className="input-container">
+                    <FaEnvelope className="input-icon" />
+                    <input
+                      type="email"
+                      className="input-field"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Submit Button */}
+              {isResetMode && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">New Password</label>
+                    <div className="input-container">
+                      <FaLock className="input-icon" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        className="input-field"
+                        placeholder="Enter new password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading || success}
+                      />
+                      <span className="input-toggle" onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </span>
+                    </div>
+
+                    {password && (
+                      <div className="strength-meter">
+                        <div className="strength-bar-container">
+                          <div
+                            className="strength-bar"
+                            style={{
+                              width: `${strengthPercent}%`,
+                              backgroundColor:
+                                strength === "Strong"
+                                  ? "#10b981"
+                                  : strength === "Medium"
+                                    ? "#f59e0b"
+                                    : "#f43f5e",
+                            }}
+                          ></div>
+                        </div>
+                        <div className="strength-label">
+                          <span style={{ color: "rgba(255,255,255,0.4)" }}>Password Strength:</span>
+                          <span className={`strength-${strength}`}>{strength}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "12px" }}>
+                    <label className="form-label">Confirm New Password</label>
+                    <div className="input-container">
+                      <FaLock className="input-icon" />
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="input-field"
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={loading || success}
+                      />
+                      <span className="input-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px", marginTop: "10px" }}>
+                    {PASSWORD_POLICY_MESSAGE}
+                  </p>
+                </>
+              )}
+
               <button
                 type="submit"
                 className="gradient-btn"
-                disabled={loading || success}
+                disabled={loading || (isResetMode && success)}
                 style={{ marginTop: "15px", marginBottom: "25px" }}
               >
-                {loading ? "Resetting password..." : "Reset Password"}
+                {loading
+                  ? (isResetMode ? "Resetting password..." : "Sending reset link...")
+                  : (isResetMode ? "Reset Password" : "Send Reset Link")}
               </button>
 
-              {/* Back to Login link */}
               <div className="form-footer">
                 <span
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/login")}
                   style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
                   <FaArrowLeft size={10} /> Back to Login
@@ -277,10 +326,7 @@ const ResetPassword = () => {
         </div>
       </div>
 
-      {/* Footer Copyright */}
-      <footer className="auth-footer">
-        © 2025 TaskFlow Pro. All rights reserved.
-      </footer>
+      <footer className="auth-footer">© 2025 TaskFlow Pro. All rights reserved.</footer>
     </div>
   );
 };

@@ -1,4 +1,20 @@
 const Task = require("../models/Task");
+const Project = require("../models/Project");
+const User = require("../models/User");
+const { canManageTasksForProject } = require("../utils/roles");
+
+const getProjectMemberRole = (projectDoc, userId) => {
+  if (String(projectDoc.owner) === String(userId)) {
+    return "owner";
+  }
+
+  const member = projectDoc.members.find((entry) => {
+    const memberUserId = entry.user?._id || entry.user || entry._id || entry;
+    return String(memberUserId) === String(userId);
+  });
+
+  return member?.role || null;
+};
 
 /* ==========================
    CREATE TASK
@@ -12,21 +28,17 @@ const createTask = async (req, res) => {
     }
 
     // Check project-level permission
-    const Project = require("../models/Project");
     const projectDoc = await Project.findById(project);
     if (!projectDoc) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    const isOwner = String(projectDoc.owner) === String(req.user._id);
-    const isMember = projectDoc.members.some(m => String(m.user) === String(req.user._id));
-
-    if (req.user.role !== "admin" && !isOwner && !isMember) {
-      return res.status(403).json({ message: "Access denied. You cannot create tasks in this project." });
+    const projectRole = getProjectMemberRole(projectDoc, req.user._id);
+    if (req.user.role !== "admin" && !canManageTasksForProject(projectRole)) {
+      return res.status(403).json({ message: "Access denied. Only project owners or project managers can create tasks." });
     }
 
     if (assignedTo) {
-      const User = require("../models/User");
       const assigneeExists = await User.findById(assignedTo);
       if (!assigneeExists) {
         return res.status(400).json({ message: "Assignee user not found." });
@@ -87,8 +99,7 @@ const getTasks = async (req, res) => {
 
     if (projectId) {
       // Validate that user is member of project
-      const Project = require("../models/Project");
-      const projectDoc = await Project.findById(projectId);
+        const projectDoc = await Project.findById(projectId);
       if (!projectDoc) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -101,7 +112,6 @@ const getTasks = async (req, res) => {
     } else {
       // If no project specified, restrict non-admins to tasks in their projects
       if (req.user.role !== "admin") {
-        const Project = require("../models/Project");
         const myProjects = await Project.find({
           $or: [{ owner: req.user._id }, { "members.user": req.user._id }]
         });
@@ -148,7 +158,6 @@ const getTaskById = async (req, res) => {
     }
 
     // Check project membership
-    const Project = require("../models/Project");
     const projectDoc = await Project.findById(task.project);
     if (!projectDoc && req.user.role !== "admin") {
       return res.status(404).json({ message: "Project associated with this task not found" });
@@ -177,22 +186,20 @@ const updateTask = async (req, res) => {
     }
 
     // Check project-level permission
-    const Project = require("../models/Project");
     const projectDoc = await Project.findById(task.project);
     if (!projectDoc) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    const isOwner = String(projectDoc.owner) === String(req.user._id);
-    const member = projectDoc.members.find(m => String(m.user) === String(req.user._id));
+    const projectRole = getProjectMemberRole(projectDoc, req.user._id);
 
-    if (req.user.role !== "admin" && !isOwner && !member) {
+    if (req.user.role !== "admin" && !projectRole) {
       return res.status(403).json({ message: "Access denied. You do not have access to this project." });
     }
 
-    const isProjectOwner = isOwner || req.user.role === "admin";
+    const canManageTask = req.user.role === "admin" || canManageTasksForProject(projectRole);
 
-    if (!isProjectOwner) {
+    if (!canManageTask) {
       // Regular member: can only update status/progress of their own tasks
       if (String(task.assignedTo) !== String(req.user._id)) {
         return res.status(403).json({ message: "Not authorized to edit this task as it is not assigned to you" });
@@ -205,7 +212,6 @@ const updateTask = async (req, res) => {
       const { title, description, status, priority, dueDate, assignedTo, progress } = req.body;
       
       if (assignedTo) {
-        const User = require("../models/User");
         const assigneeExists = await User.findById(assignedTo);
         if (!assigneeExists) {
           return res.status(400).json({ message: "Assignee user not found." });
@@ -265,12 +271,11 @@ const deleteTask = async (req, res) => {
     }
 
     // Check project-level permission
-    const Project = require("../models/Project");
     const projectDoc = await Project.findById(task.project);
-    const isOwner = projectDoc && String(projectDoc.owner) === String(req.user._id);
+    const projectRole = projectDoc ? getProjectMemberRole(projectDoc, req.user._id) : null;
 
-    if (req.user.role !== "admin" && !isOwner) {
-      return res.status(403).json({ message: "Not authorized to delete this task. Only project owners can delete tasks." });
+    if (req.user.role !== "admin" && !canManageTasksForProject(projectRole)) {
+      return res.status(403).json({ message: "Not authorized to delete this task. Only project owners or project managers can delete tasks." });
     }
 
     await task.deleteOne();

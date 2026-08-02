@@ -1,5 +1,10 @@
 const Project = require("../models/Project");
 const crypto = require("crypto");
+const User = require("../models/User");
+const {
+  PROJECT_MEMBER_ROLES,
+  normalizeProjectRole,
+} = require("../utils/roles");
 
 const generateUniqueInviteCode = async () => {
   let isUnique = false;
@@ -12,6 +17,10 @@ const generateUniqueInviteCode = async () => {
     }
   }
   return code;
+};
+
+const getGlobalRoleFromProjectRole = (projectRole) => {
+  return projectRole === "project_manager" ? "project_manager" : "team_member";
 };
 
 /* ==========================
@@ -28,9 +37,20 @@ const createProject = async (req, res) => {
       startDate,
       endDate,
       progress,
+      members = [],
     } = req.body;
 
     const inviteCode = await generateUniqueInviteCode();
+    const memberIds = Array.isArray(members) ? members : [];
+    const uniqueMemberIds = [...new Set(memberIds.map((memberId) => String(memberId)).filter(Boolean))];
+    const existingMembers = await User.find({ _id: { $in: uniqueMemberIds } }).select("_id");
+
+    const normalizedMembers = existingMembers
+      .filter((user) => String(user._id) !== String(req.user._id))
+      .map((user) => ({
+        user: user._id,
+        role: "member",
+      }));
 
     const project = await Project.create({
       name,
@@ -40,7 +60,7 @@ const createProject = async (req, res) => {
       startDate,
       endDate,
       progress: progress || 0,
-      members: [{ user: req.user._id, role: "owner" }],
+      members: normalizedMembers,
       owner: req.user._id,
       inviteCode,
     });
@@ -133,8 +153,9 @@ const deleteProject = async (req, res) => {
 
 const addMemberToProject = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, role } = req.body;
     const project = req.project;
+    const normalizedProjectRole = normalizeProjectRole(role, "member");
 
     // Validate email presence first
     if (!email || (typeof email === "string" && !email.trim())) {
@@ -148,24 +169,21 @@ const addMemberToProject = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please enter a valid email address" });
     }
 
-    const User = require("../models/User");
     let user = await User.findOne({ email: trimmedEmail.toLowerCase() });
 
     if (!user) {
-      // Create a default name from email prefix
       const name = trimmedEmail.split("@")[0];
-      const bcrypt = require("bcryptjs");
-      const hashedPassword = await bcrypt.hash("123456", 10);
-
       user = await User.create({
         name,
         email: trimmedEmail.toLowerCase(),
-        password: hashedPassword,
-        role: "team_member",
+        password: await require("bcryptjs").hash(crypto.randomBytes(12).toString("hex"), 10),
+        role: getGlobalRoleFromProjectRole(normalizedProjectRole),
       });
+    } else if (normalizedProjectRole === "project_manager" && user.role === "team_member") {
+      user.role = "project_manager";
+      await user.save();
     }
 
-    // Add to project members if not already there
     const alreadyMember = project.members.some(m => {
       const memberUserId = m.user?._id || m.user || m._id || m;
       return String(memberUserId) === String(user._id);
@@ -173,7 +191,7 @@ const addMemberToProject = async (req, res) => {
     if (!alreadyMember && String(project.owner) !== String(user._id)) {
       project.members.push({
         user: user._id,
-        role: "member",
+        role: normalizedProjectRole,
         joinedAt: new Date()
       });
       await project.save();
@@ -273,9 +291,14 @@ const assignMemberRole = async (req, res) => {
   try {
     const { userId, role } = req.body;
     const project = req.project;
+    const normalizedRole = normalizeProjectRole(role, null);
 
     if (!userId || !role) {
       return res.status(400).json({ message: "User ID and Role are required." });
+    }
+
+    if (!normalizedRole || !PROJECT_MEMBER_ROLES.includes(normalizedRole)) {
+      return res.status(400).json({ message: "Invalid project role selected." });
     }
 
     if (String(userId) === String(req.user._id)) {
@@ -290,7 +313,7 @@ const assignMemberRole = async (req, res) => {
       return res.status(404).json({ message: "User is not a member of this project." });
     }
 
-    if (role === "owner") {
+    if (normalizedRole === "owner") {
       // Demote current owner to member role
       const currentOwnerMember = project.members.find(m => {
         const memberUserId = m.user?._id || m.user || m._id || m;
@@ -312,7 +335,7 @@ const assignMemberRole = async (req, res) => {
       });
     } else {
       const oldRole = member.role;
-      member.role = role;
+      member.role = normalizedRole;
 
       // Log action
       const ActivityLog = require("../models/ActivityLog");
@@ -320,8 +343,14 @@ const assignMemberRole = async (req, res) => {
         project: project._id,
         user: req.user._id,
         action: "ASSIGN_ROLE",
-        details: `Changed role of user ${userId} from ${oldRole} to ${role}.`,
+        details: `Changed role of user ${userId} from ${oldRole} to ${normalizedRole}.`,
       });
+
+      const memberUser = await User.findById(userId);
+      if (memberUser && normalizedRole === "project_manager" && memberUser.role === "team_member") {
+        memberUser.role = "project_manager";
+        await memberUser.save();
+      }
     }
 
     await project.save();
@@ -502,7 +531,7 @@ const getProjectById = async (req, res) => {
         inProgressTasks,
         reviewTasks,
         pendingTasks,
-        totalMembers: project.members.length + 1
+        totalMembers: project.members.filter((member) => String(member.user?._id || member.user) !== String(project.owner?._id || project.owner)).length + 1
       },
       tasks,
       activityLogs,

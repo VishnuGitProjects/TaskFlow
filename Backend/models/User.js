@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { GLOBAL_ROLES } = require("../utils/roles");
 
 const userSchema = new mongoose.Schema(
   {
@@ -24,7 +25,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "team_member"],
+      enum: GLOBAL_ROLES,
       default: "team_member",
     },
 

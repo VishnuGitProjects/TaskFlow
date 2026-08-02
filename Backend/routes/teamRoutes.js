@@ -11,10 +11,10 @@ const router = express.Router();
 
 router.route("/")
   .get(protect, getTeams)
-  .post(protect, authorize("admin", "project_manager"), createTeam);
+  .post(protect, authorize("admin"), createTeam);
 
 router.route("/:id")
-  .put(protect, updateTeam)
-  .delete(protect, deleteTeam);
+  .put(protect, authorize("admin"), updateTeam)
+  .delete(protect, authorize("admin"), deleteTeam);
 
 module.exports = router;

@@ -90,7 +90,7 @@ const LiveDateTime = () => {
 };
 
 const Dashboard = () => {
-  const { user, isAdmin, isManager } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [showCreateModal, setShowCreate] = useState(false);
   const [activeTaskTab, setActiveTaskTab] = useState("All");
 
@@ -566,7 +566,7 @@ const Dashboard = () => {
           <div className="dash-card team-activity-card">
             <div className="dash-card-header">
               <h3>Team Activity</h3>
-              <a href="/teams" className="header-link">View All <FaArrowRight /></a>
+              <a href={isAdmin ? "/teams" : "/projects"} className="header-link">View All <FaArrowRight /></a>
             </div>
             <div className="activity-feed-list">
               {activityData.length === 0 ? (
@@ -630,7 +630,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Create Project Modal (Admin/Manager only) */}
+      {/* Create Project Modal */}
       <CreateProjectModal
         isOpen={showCreateModal}
         onClose={() => setShowCreate(false)}

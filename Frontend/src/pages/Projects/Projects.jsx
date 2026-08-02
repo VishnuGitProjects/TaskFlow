@@ -42,7 +42,7 @@ import "../../styles/projects.css";
 
 const Projects = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, isManager } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const [projects, setProjects]         = useState([]);
   const [tasks, setTasks]               = useState([]);
@@ -182,6 +182,10 @@ const Projects = () => {
   const completedCount = countByStatus("Completed") || countByStatus("completed") || 0;
   const onHoldCount = countByStatus("On Hold") || countByStatus("on_hold") || 0;
   const cancelledCount = countByStatus("Cancelled") || countByStatus("cancelled") || 0;
+  const getAssignedProjectManager = (project) => {
+    const managerMember = (project.members || []).find((member) => member.role === "project_manager");
+    return managerMember?.user || project.owner;
+  };
 
   return (
     <MainLayout>
@@ -198,9 +202,11 @@ const Projects = () => {
             <button className="create-project-btn" style={{ marginRight: "10px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", boxShadow: "0 4px 15px rgba(16, 185, 129, 0.25)" }} onClick={() => setShowJoinModal(true)}>
               <FaPlus /> Join Project
             </button>
-            <button className="create-project-btn" onClick={() => setShowCreate(true)}>
-              <FaPlus /> Create Project
-            </button>
+            {isAdmin && (
+              <button className="create-project-btn" onClick={() => setShowCreate(true)}>
+                <FaPlus /> Create Project
+              </button>
+            )}
             <button className="filters-btn">
               <FaFilter /> Filters
             </button>
@@ -272,7 +278,7 @@ const Projects = () => {
           <div className="empty-projects-box">
             <h2>No Projects Found</h2>
             <p>
-              {isAdmin || isManager
+              {isAdmin
                 ? "Click \"Create Project\" to add your first project."
                 : "No projects have been assigned to you yet."}
             </p>
@@ -325,16 +331,10 @@ const Projects = () => {
                   const priority = project.priority || "Medium";
                   const statusText = project.status || "In Progress";
                   const progressVal = project.progress !== undefined ? project.progress : 0;
-
-                  const projectTasks = tasks.filter(t => t.project?._id === project._id || t.project === project._id);
-                  const uniqueMembers = [];
-                  const seenIds = new Set();
-                  projectTasks.forEach(task => {
-                    if (task.assignedTo && task.assignedTo._id && !seenIds.has(task.assignedTo._id)) {
-                      seenIds.add(task.assignedTo._id);
-                      uniqueMembers.push(task.assignedTo);
-                    }
-                  });
+                  const assignedManager = getAssignedProjectManager(project);
+                  const visibleMembers = (project.members || []).filter(
+                    (member) => String(member.user?._id || member.user) !== String(project.owner?._id || project.owner)
+                  );
 
                   return (
                     <tr key={project._id} onClick={() => navigate(`/projects/${project._id}`)} style={{ cursor: "pointer" }}>
@@ -396,12 +396,12 @@ const Projects = () => {
                       <td>
                         <div className="table-manager-cell">
                           <div className="manager-avatar">
-                            {project.owner?.name
-                              ? project.owner.name.substring(0, 2).toUpperCase()
+                            {assignedManager?.name
+                              ? assignedManager.name.substring(0, 2).toUpperCase()
                               : "UA"}
                           </div>
                           <div className="manager-info">
-                            <h4>{project.owner?.name || "Unassigned"}</h4>
+                            <h4>{assignedManager?.name || "Unassigned"}</h4>
                             <span>Project Manager</span>
                           </div>
                         </div>
@@ -409,12 +409,12 @@ const Projects = () => {
 
                       {/* Team Avatar Stack */}
                       <td>
-                        {project.members && project.members.length === 0 ? (
+                        {visibleMembers.length === 0 ? (
                            <span style={{ color: "rgba(255,255,255,0.3)", paddingLeft: "10px" }}>—</span>
                         ) : (
                           <div className="table-team-avatars">
                             <div className="team-avatar-stack">
-                              {project.members && project.members.slice(0, 3).map((member, mIdx) => {
+                              {visibleMembers.slice(0, 3).map((member, mIdx) => {
                                 const u = member.user || {};
                                 const displayName = u.name || "Member";
                                 return (
@@ -424,8 +424,8 @@ const Projects = () => {
                                 );
                               })}
                             </div>
-                            {project.members && project.members.length > 3 && (
-                              <span className="team-more-badge">+{project.members.length - 3}</span>
+                            {visibleMembers.length > 3 && (
+                              <span className="team-more-badge">+{visibleMembers.length - 3}</span>
                             )}
                           </div>
                         )}

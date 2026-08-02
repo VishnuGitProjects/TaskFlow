@@ -4,7 +4,7 @@ import "./CreateProjectModal.css"; // Reuse same glassmorphic modal styles
 const AddProjectMemberModal = ({ isOpen, project, onClose, onAddMember }) => {
   const [formData, setFormData] = useState({
     email: "",
-    role: "team_member",
+    role: "member",
   });
   const [loading, setLoading] = useState(false);
 
@@ -17,7 +17,7 @@ const AddProjectMemberModal = ({ isOpen, project, onClose, onAddMember }) => {
     setLoading(true);
     try {
       await onAddMember(project._id, formData);
-      setFormData({ email: "", role: "team_member" });
+      setFormData({ email: "", role: "member" });
       onClose();
     } catch (err) {
       console.error(err);
@@ -56,7 +56,7 @@ const AddProjectMemberModal = ({ isOpen, project, onClose, onAddMember }) => {
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               style={{ padding: "12px", borderRadius: "8px", background: "#374151", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
             >
-              <option value="team_member">Team Member</option>
+              <option value="member">Team Member</option>
               <option value="project_manager">Project Manager</option>
             </select>
           </div>

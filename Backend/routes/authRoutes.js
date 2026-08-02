@@ -2,15 +2,48 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { Resend } = require("resend");
 const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 const router = express.Router();
+
+const PASSWORD_RESET_WINDOW_MS = 60 * 60 * 1000;
+
+const buildResetUrl = (token) => {
+  const clientUrl = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
+  return `${clientUrl}/reset-password?token=${token}`;
+};
+
+const sendPasswordResetMessage = async (user, resetUrl) => {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL;
+
+  if (!resendApiKey || !resendFromEmail) {
+    console.log(`[PASSWORD RESET] ${user.email}: ${resetUrl}`);
+    return false;
+  }
+
+  const resend = new Resend(resendApiKey);
+  await resend.emails.send({
+    from: resendFromEmail,
+    to: user.email,
+    subject: "Reset your TaskFlow password",
+    html: `
+      <p>Hello ${user.name || "there"},</p>
+      <p>We received a request to reset your TaskFlow password.</p>
+      <p><a href="${resetUrl}">Click here to reset your password</a></p>
+      <p>This link expires in 1 hour.</p>
+      <p>If you did not request this, you can safely ignore this email.</p>
+    `,
+  });
+  return true;
+};
 /* ===========================
    REGISTER
 =========================== */
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, confirmPassword, role } = req.body;
+    const { name, email, password, confirmPassword } = req.body;
 
     // Validate empty fields
     if (!name || !name.trim()) {
@@ -159,7 +192,7 @@ router.post("/social-login", async (req, res) => {
   }
 
   try {
-    const { email, name, provider, avatar } = req.body;
+    const { email } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
@@ -233,7 +266,7 @@ router.post("/google-login", async (req, res) => {
       `https://oauth2.googleapis.com/tokeninfo?id_token=${id_token}`
     );
 
-    const { email, name, picture, email_verified, aud } = tokenInfoResponse.data;
+    const { email, name, email_verified, aud } = tokenInfoResponse.data;
 
     if (aud !== clientId) {
       return res.status(400).json({ message: "Invalid token audience (Client ID mismatch)." });
@@ -287,15 +320,71 @@ router.post("/google-login", async (req, res) => {
 /* ===========================
    FORGOT PASSWORD
 =========================== */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: "Email is required." });
+    }
+
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ success: false, message: "Please enter a valid email address." });
+    }
+
+    const user = await User.findOne({ email: trimmedEmail.toLowerCase() });
+    const genericResponse = {
+      success: true,
+      message: "If an account with that email exists, a password reset link has been sent.",
+    };
+
+    if (!user || !user.isActive) {
+      return res.status(200).json(genericResponse);
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    user.resetPasswordExpires = new Date(Date.now() + PASSWORD_RESET_WINDOW_MS);
+    await user.save();
+
+    const resetUrl = buildResetUrl(rawToken);
+
+    try {
+      await sendPasswordResetMessage(user, resetUrl);
+    } catch (emailError) {
+      console.error("Forgot Password Email Error:", emailError);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+      return res.status(500).json({
+        success: false,
+        message: "Unable to send password reset email right now. Please try again later.",
+      });
+    }
+
+    const responsePayload = { ...genericResponse };
+    if (process.env.NODE_ENV !== "production") {
+      responsePayload.resetUrl = resetUrl;
+    }
+
+    res.status(200).json(responsePayload);
+  } catch (err) {
+    console.error("Forgot Password Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+
 /* ===========================
    RESET PASSWORD
 =========================== */
 router.post("/reset-password", async (req, res) => {
   try {
-    const { email, password, confirmPassword } = req.body;
+    const { token, password, confirmPassword } = req.body;
 
-    if (!email || !email.trim()) {
-      return res.status(400).json({ success: false, message: "Email is required." });
+    if (!token || !String(token).trim()) {
+      return res.status(400).json({ success: false, message: "Reset token is required." });
     }
     if (!password) {
       return res.status(400).json({ success: false, message: "New password is required." });
@@ -304,14 +393,6 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({ success: false, message: "Confirm password is required." });
     }
 
-    // Trim and validate email format
-    const trimmedEmail = email.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      return res.status(400).json({ success: false, message: "Please enter a valid email address." });
-    }
-
-    // Password strength check (min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char)
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
@@ -320,17 +401,23 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Confirm passwords match
     if (password !== confirmPassword) {
       return res.status(400).json({ success: false, message: "Passwords do not match." });
     }
 
-    const user = await User.findOne({ email: trimmedEmail.toLowerCase() });
+    const hashedToken = crypto.createHash("sha256").update(String(token).trim()).digest("hex");
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "No account found with this email." });
+      return res.status(400).json({
+        success: false,
+        message: "This password reset link is invalid or has expired.",
+      });
     }
 
-    // Hash new password
     user.password = await bcrypt.hash(password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;

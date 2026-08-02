@@ -24,8 +24,13 @@ export const logout = () => {
   sessionStorage.removeItem("user");
 };
 
-export const resetPassword = async (email, password, confirmPassword) => {
-  const res = await api.post("/auth/reset-password", { email, password, confirmPassword });
+export const requestPasswordReset = async (email) => {
+  const res = await api.post("/auth/forgot-password", { email });
+  return res.data;
+};
+
+export const resetPassword = async (token, password, confirmPassword) => {
+  const res = await api.post("/auth/reset-password", { token, password, confirmPassword });
   return res.data;
 };
 

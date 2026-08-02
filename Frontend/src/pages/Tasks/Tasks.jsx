@@ -141,6 +141,28 @@ const Tasks = () => {
   const completedCount = tasks.filter((t) => t.status === "Completed").length;
 
   // Actions
+  const getProjectRoleForUser = (project) => {
+    if (!project || !user) return null;
+    if (user.role === "admin") return "owner";
+
+    const ownerId = String(project.owner?._id || project.owner || "");
+    if (ownerId === String(user._id)) {
+      return "owner";
+    }
+
+    const membership = (project.members || []).find((member) => {
+      const memberId = member.user?._id || member.user || member._id || member;
+      return String(memberId) === String(user._id);
+    });
+
+    return membership?.role || null;
+  };
+
+  const canManageProjectTasks = (project) => {
+    const role = getProjectRoleForUser(project);
+    return ["owner", "admin", "project_manager"].includes(role);
+  };
+
   const getProjectAssignees = (targetProjectId) => {
     const projId = targetProjectId || formData.project;
     if (!projId) return [];
@@ -221,31 +243,25 @@ const Tasks = () => {
   };
 
   const isProjectOwnerForTask = (task) => {
-    if (user?.role === "admin") return true;
     if (!task || !task.project) return false;
     const projectId = task.project._id || task.project;
     const project = projects.find(p => String(p._id) === String(projectId));
-    if (project) {
-      return String(project.owner?._id || project.owner) === String(user?._id);
-    }
-    return false;
+    return canManageProjectTasks(project);
   };
 
   const isOwnerOrAdmin = () => {
-    if (user?.role === "admin") return true;
-    if (!editingTask) return true; // full access when creating
+    if (!editingTask) {
+      const currentProject = projects.find((project) => String(project._id) === String(formData.project));
+      return canManageProjectTasks(currentProject);
+    }
 
     const projectId = formData.project || editingTask.project?._id || editingTask.project;
     const project = projects.find(p => String(p._id) === String(projectId));
-    if (project) {
-      return String(project.owner?._id || project.owner) === String(user?._id);
-    }
-    return false;
+    return canManageProjectTasks(project);
   };
 
   const canCreateTask = () => {
-    if (user?.role === "admin") return true;
-    return projects.some(p => String(p.owner?._id || p.owner) === String(user?._id));
+    return projects.some((project) => canManageProjectTasks(project));
   };
 
   const handleDelete = async (id) => {

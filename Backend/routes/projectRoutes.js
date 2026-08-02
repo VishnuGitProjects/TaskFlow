@@ -17,13 +17,13 @@ const {
   getProjectById,
 } = require("../controllers/projectController");
 
-const { protect, checkProjectPermission } = require("../middleware/authMiddleware");
+const { protect, authorize, checkProjectPermission } = require("../middleware/authMiddleware");
 
 // Join Project by Invite Code (registered before /:id)
 router.post("/join", protect, joinProjectByCode);
 
 // Create Project
-router.post("/", protect, createProject);
+router.post("/", protect, authorize("admin"), createProject);
 
 // Get All Projects
 router.get("/", protect, getProjects);

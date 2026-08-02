@@ -100,6 +100,8 @@ const ManageProjectMembersModal = ({ isOpen, project, currentUser, onClose, onRe
                     style={{ padding: "6px 10px", borderRadius: "6px", background: "#374151", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "12.5px" }}
                   >
                     <option value="member">Member</option>
+                    <option value="project_manager">Project Manager</option>
+                    <option value="admin">Project Admin</option>
                     <option value="owner">Owner (Transfer)</option>
                   </select>
 

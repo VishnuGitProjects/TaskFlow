@@ -1,7 +1,9 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const User = require("../models/User");
 const { protect, authorize } = require("../middleware/authMiddleware");
+const { GLOBAL_ROLES, normalizeGlobalRole } = require("../utils/roles");
 
 const router = express.Router();
 
@@ -119,14 +121,20 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
     }
 
     const finalName = (name && name.trim()) || trimmedEmail.split("@")[0];
-    const finalPassword = password || "123456";
+    const finalPassword = password || crypto.randomBytes(8).toString("hex");
+    const finalRole = role ? normalizeGlobalRole(role, null) : "team_member";
+
+    if (!finalRole || !GLOBAL_ROLES.includes(finalRole)) {
+      return res.status(400).json({ success: false, message: "Invalid role selected." });
+    }
+
     const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
     const user = await User.create({
       name: finalName,
       email: trimmedEmail.toLowerCase(),
       password: hashedPassword,
-      role: role || "team_member",
+      role: finalRole,
     });
 
     // Simulate sending email invitation to developer console
@@ -134,7 +142,7 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
     console.log(`📧 EMAIL INVITATION SENT TO ${email.toLowerCase()}:`);
     console.log(`Subject: Added to TaskFlow Pro Workspace`);
     console.log(`Hello ${finalName},`);
-    console.log(`You have been added to the workspace as a ${role || "team_member"}.`);
+    console.log(`You have been added to the workspace as a ${finalRole}.`);
     console.log(`Temporary Password: ${finalPassword}`);
     console.log(`Login here: ${process.env.CLIENT_URL || "http://localhost:5173"}`);
     console.log(`=============================================\n`);
@@ -185,7 +193,13 @@ router.put("/:id", protect, async (req, res) => {
       }
       user.email = email.toLowerCase();
     }
-    if (role && req.user.role === "admin") user.role = role;
+    if (role && req.user.role === "admin") {
+      const normalizedRole = normalizeGlobalRole(role, null);
+      if (!normalizedRole || !GLOBAL_ROLES.includes(normalizedRole)) {
+        return res.status(400).json({ message: "Invalid role selected." });
+      }
+      user.role = normalizedRole;
+    }
     if (isActive !== undefined && req.user.role === "admin") user.isActive = isActive;
 
     await user.save();

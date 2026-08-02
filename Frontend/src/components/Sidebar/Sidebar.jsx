@@ -4,25 +4,21 @@ import {
   FaFolderOpen,
   FaTasks,
   FaUsers,
-  FaCalendarAlt,
   FaChartBar,
   FaCog,
   FaUserShield,
   FaChevronRight,
   FaChevronDown,
-  FaRegFileAlt,
   FaRegCommentDots,
   FaChartLine,
-  FaMoon,
-  FaRocket,
 } from "react-icons/fa";
 import { MdChecklist } from "react-icons/md";
-import "../../styles/sidebar.css";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import "../../styles/sidebar.css";
 
 const Sidebar = ({ isCollapsed, onClose }) => {
-  const { isAdmin, isManager } = useAuth();
+  const { isAdmin } = useAuth();
   const [unreadCount, setUnreadCount] = useState(() => {
     return parseInt(sessionStorage.getItem("unreadMessagesCount") || "0", 10);
   });
@@ -43,7 +39,6 @@ const Sidebar = ({ isCollapsed, onClose }) => {
 
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
-      {/* Logo Section */}
       <div className="sidebar-logo-section">
         <div className="sidebar-logo-icon">
           <MdChecklist />
@@ -57,12 +52,10 @@ const Sidebar = ({ isCollapsed, onClose }) => {
         </button>
       </div>
 
-      {/* Navigation Menu */}
       <nav className="sidebar-menu">
-        {/* Dashboard */}
         <NavLink
           to="/dashboard"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -71,10 +64,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           </div>
         </NavLink>
 
-        {/* Projects */}
         <NavLink
           to="/projects"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -84,10 +76,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <FaChevronRight className="menu-item-arrow" />
         </NavLink>
 
-        {/* Tasks */}
         <NavLink
           to="/tasks"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -97,11 +88,10 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <FaChevronRight className="menu-item-arrow" />
         </NavLink>
 
-        {/* Teams (Admin + Manager) */}
-        {(isAdmin || isManager) && (
+        {isAdmin && (
           <NavLink
             to="/teams"
-            className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+            className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
             onClick={handleItemClick}
           >
             <div className="menu-item-left">
@@ -112,34 +102,34 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           </NavLink>
         )}
 
-        {/* User Management */}
-        <div className="submenu-group">
-          <NavLink
-            to="/users"
-            className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
-            onClick={handleItemClick}
-          >
-            <div className="menu-item-left">
-              <FaUserShield />
-              <span>User Management</span>
-            </div>
-            <FaChevronDown className="menu-item-arrow active" style={{ transform: "rotate(180deg)", opacity: 0.5 }} />
-          </NavLink>
-          <div className="sidebar-submenu">
+        {isAdmin && (
+          <div className="submenu-group">
             <NavLink
               to="/users"
-              className={({ isActive }) => isActive ? "submenu-item active" : "submenu-item"}
+              className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
               onClick={handleItemClick}
             >
-              <span className="submenu-dot">•</span> Users
+              <div className="menu-item-left">
+                <FaUserShield />
+                <span>User Management</span>
+              </div>
+              <FaChevronDown className="menu-item-arrow active" style={{ transform: "rotate(180deg)", opacity: 0.5 }} />
             </NavLink>
+            <div className="sidebar-submenu">
+              <NavLink
+                to="/users"
+                className={({ isActive }) => (isActive ? "submenu-item active" : "submenu-item")}
+                onClick={handleItemClick}
+              >
+                <span className="submenu-dot">•</span> Users
+              </NavLink>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Progress Tracking */}
         <NavLink
           to="/progress"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -149,10 +139,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <FaChevronRight className="menu-item-arrow" />
         </NavLink>
 
-        {/* Reports */}
         <NavLink
           to="/reports"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -162,10 +151,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <FaChevronRight className="menu-item-arrow" />
         </NavLink>
 
-        {/* Messages */}
         <NavLink
           to="/messages"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -180,10 +168,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
           <FaChevronRight className="menu-item-arrow" />
         </NavLink>
 
-        {/* Settings */}
         <NavLink
           to="/settings"
-          className={({ isActive }) => isActive ? "menu-item active" : "menu-item"}
+          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
           onClick={handleItemClick}
         >
           <div className="menu-item-left">
@@ -194,7 +181,6 @@ const Sidebar = ({ isCollapsed, onClose }) => {
         </NavLink>
       </nav>
 
-      {/* Footer Box */}
       <div className="sidebar-promo-container">
         <div className="sidebar-copyright" style={{ marginTop: 0 }}>
           © 2025 TaskFlow Pro

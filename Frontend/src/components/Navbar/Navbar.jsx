@@ -10,13 +10,16 @@ import { getUsers } from "../../services/userService";
 import { getTeams } from "../../services/teamService";
 import "../../styles/navbar.css";
 
-// Navigation suggestions
-const navigationRoutes = [
+const getNavigationRoutes = (isAdmin) => [
   { name: "Dashboard", path: "/dashboard" },
   { name: "Projects", path: "/projects" },
   { name: "Tasks", path: "/tasks" },
-  { name: "Teams", path: "/teams" },
-  { name: "Users", path: "/users" },
+  ...(isAdmin
+    ? [
+        { name: "Teams", path: "/teams" },
+        { name: "Users", path: "/users" },
+      ]
+    : []),
   { name: "Calendar", path: "/calendar" },
   { name: "Settings", path: "/settings" },
   { name: "Progress Tracking", path: "/progress" },
@@ -24,17 +27,9 @@ const navigationRoutes = [
   { name: "Messages", path: "/messages" },
 ];
 
-// Format role for display
-const formatRole = (role) => {
-  if (!role) return "";
-  if (role === "admin") return "Admin";
-  if (role === "project_manager") return "Manager";
-  if (role === "team_member") return "Team Member";
-  return role;
-};
-
 const Navbar = ({ onToggleSidebar }) => {
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -148,7 +143,7 @@ const Navbar = ({ onToggleSidebar }) => {
     const q = searchQuery.toLowerCase().trim();
 
     // 1. Navigation matches
-    const navMatches = navigationRoutes
+    const navMatches = getNavigationRoutes(isAdmin)
       .filter((route) => route.name.toLowerCase().includes(q))
       .map((route) => ({
         name: route.name,
@@ -166,18 +161,22 @@ const Navbar = ({ onToggleSidebar }) => {
       .filter((t) => t.title.toLowerCase().includes(q))
       .map((t) => ({ name: t.title, path: `/tasks?projectId=${t.project?._id || t.project}`, type: "Task", subtitle: t.status }));
 
-    const userMatches = allData.users
-      .filter((u) => u.name.toLowerCase().includes(q))
-      .map((u) => ({ name: u.name, path: "/users", type: "User", subtitle: u.email }));
+    const userMatches = isAdmin
+      ? allData.users
+          .filter((u) => u.name.toLowerCase().includes(q))
+          .map((u) => ({ name: u.name, path: "/users", type: "User", subtitle: u.email }))
+      : [];
 
-    const teamMatches = allData.teams
-      .filter((t) => t.name.toLowerCase().includes(q))
-      .map((t) => ({ name: t.name, path: "/teams", type: "Team", subtitle: `${t.members?.length || 0} members` }));
+    const teamMatches = isAdmin
+      ? allData.teams
+          .filter((t) => t.name.toLowerCase().includes(q))
+          .map((t) => ({ name: t.name, path: "/teams", type: "Team", subtitle: `${t.members?.length || 0} members` }))
+      : [];
 
     const combined = [...navMatches, ...projectMatches, ...taskMatches, ...userMatches, ...teamMatches];
 
     setSearchResults(combined.slice(0, 8)); // Limit to 8 items
-  }, [searchQuery, allData]);
+  }, [searchQuery, allData, isAdmin]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -232,7 +231,7 @@ const Navbar = ({ onToggleSidebar }) => {
           <FaSearch />
           <input
             type="text"
-            placeholder={isUsersPage ? "Search users..." : "Search projects, tasks, teams..."}
+            placeholder={isUsersPage ? "Search users..." : isAdmin ? "Search projects, tasks, teams..." : "Search projects and tasks..."}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={() => {

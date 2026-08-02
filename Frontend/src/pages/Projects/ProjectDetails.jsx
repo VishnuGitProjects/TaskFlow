@@ -103,6 +103,11 @@ const ProjectDetails = () => {
   }
 
   const { project, role, stats, tasks, activityLogs, attachments } = projectData;
+  const assignedProjectManager =
+    (project.members || []).find((member) => member.role === "project_manager")?.user || project.owner;
+  const visibleMembers = (project.members || []).filter(
+    (member) => String(member.user?._id || member.user) !== String(project.owner?._id || project.owner)
+  );
 
   // Check project role privileges
   const isOwnerOrAdmin = role === "owner" || isAdmin;
@@ -301,7 +306,7 @@ const ProjectDetails = () => {
                 </div>
                 <div className="meta-item">
                   <span className="meta-item-label">Project Manager</span>
-                  <span className="meta-item-value">{project.owner?.name || "Unassigned"}</span>
+                  <span className="meta-item-value">{assignedProjectManager?.name || "Unassigned"}</span>
                 </div>
                 <div className="meta-item">
                   <span className="meta-item-label">Invite Code</span>
@@ -396,15 +401,15 @@ const ProjectDetails = () => {
                       {project.owner?.name ? project.owner.name.substring(0, 2).toUpperCase() : "UA"}
                     </div>
                     <div className="member-info-details">
-                      <h4>{project.owner?.name || "Unassigned"}</h4>
-                      <span>{project.owner?.email}</span>
+                      <h4>{assignedProjectManager?.name || project.owner?.name || "Unassigned"}</h4>
+                      <span>{assignedProjectManager?.email || project.owner?.email}</span>
                     </div>
                   </div>
                   <span className="member-role-badge role-owner">Project Manager</span>
                 </div>
 
                 {/* Other members */}
-                {project.members && project.members.map((member) => {
+                {visibleMembers.map((member) => {
                   const u = member.user || {};
                   const initials = u.name ? u.name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2) : "U";
                   return (
