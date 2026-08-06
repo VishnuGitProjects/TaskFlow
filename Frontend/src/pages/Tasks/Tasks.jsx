@@ -39,6 +39,7 @@ import "../../styles/tasks.css";
 
 const Tasks = () => {
   const { user } = useAuth();
+  const currentUserId = String(user?._id || user?.id || "");
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -114,9 +115,9 @@ const Tasks = () => {
     return tasks.filter((task) => {
       // Tab filter
       if (activeTab === "My Tasks") {
-        if (!task.assignedTo || task.assignedTo._id !== user?._id) return false;
+        if (String(task.assignedTo?._id || task.assignedTo || "") !== currentUserId) return false;
       } else if (activeTab === "Assigned to Others") {
-        if (task.assignedTo && task.assignedTo._id === user?._id) return false;
+        if (String(task.assignedTo?._id || task.assignedTo || "") === currentUserId) return false;
       } else if (activeTab === "Overdue Tasks") {
         const isOverdue = task.status !== "Completed" && task.dueDate && new Date(task.dueDate) < new Date();
         if (!isOverdue) return false;
@@ -257,7 +258,7 @@ const Tasks = () => {
       return true;
     }
 
-    return String(task.assignedTo?._id || task.assignedTo || "") === String(user?._id);
+    return String(task.assignedTo?._id || task.assignedTo || "") === currentUserId;
   };
 
   const canEditTaskMetadata = () => {
@@ -273,7 +274,7 @@ const Tasks = () => {
       return true;
     }
 
-    return String(editingTask.assignedTo?._id || editingTask.assignedTo || "") === String(user?._id);
+    return String(editingTask.assignedTo?._id || editingTask.assignedTo || "") === currentUserId;
   };
 
   const handleDelete = async (id) => {

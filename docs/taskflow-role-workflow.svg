@@ -1,0 +1,177 @@
+<svg width="1600" height="1160" viewBox="0 0 1600 1160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #0F172A; }
+      .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .lane-title { font: 700 24px 'Segoe UI', Arial, sans-serif; fill: #0F172A; }
+      .section-title { font: 700 16px 'Segoe UI', Arial, sans-serif; fill: #0F172A; }
+      .node-text { font: 600 14px 'Segoe UI', Arial, sans-serif; fill: #0F172A; }
+      .small { font: 400 12px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .legend-text { font: 600 13px 'Segoe UI', Arial, sans-serif; fill: #334155; }
+      .connector { stroke: #475569; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #CBD5E1; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1160" fill="url(#bg)"/>
+
+  <rect x="40" y="28" width="1520" height="110" rx="26" fill="white" filter="url(#shadow)"/>
+  <rect x="62" y="50" width="12" height="66" rx="6" fill="url(#titleGrad)"/>
+  <text x="94" y="82" class="title">TaskFlow Role-Based Workflow</text>
+  <text x="94" y="110" class="subtitle">Presentation-ready flow showing the final application journey for Administrator, Project Manager, and Team Member roles.</text>
+
+  <g transform="translate(1090 52)">
+    <rect x="0" y="0" width="430" height="62" rx="16" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <rect x="18" y="18" width="16" height="16" rx="4" fill="#DBEAFE"/>
+    <text x="44" y="31" class="legend-text">Administrator</text>
+    <rect x="160" y="18" width="16" height="16" rx="4" fill="#DCFCE7"/>
+    <text x="186" y="31" class="legend-text">Project Manager</text>
+    <rect x="330" y="18" width="16" height="16" rx="4" fill="#FEE2E2"/>
+    <text x="356" y="31" class="legend-text">Team Member</text>
+  </g>
+
+  <rect x="40" y="164" width="1520" height="110" rx="24" fill="white" stroke="#CBD5E1" filter="url(#shadow)"/>
+  <text x="72" y="202" class="lane-title">Common Entry Flow</text>
+  <rect x="92" y="220" width="190" height="34" rx="17" fill="#E0F2FE" stroke="#7DD3FC"/>
+  <text x="136" y="242" class="node-text">Open TaskFlow</text>
+  <rect x="348" y="220" width="220" height="34" rx="17" fill="#EDE9FE" stroke="#C4B5FD"/>
+  <text x="392" y="242" class="node-text">Login and create session</text>
+  <rect x="636" y="220" width="230" height="34" rx="17" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="674" y="242" class="node-text">Load role-based dashboard</text>
+  <rect x="934" y="220" width="240" height="34" rx="17" fill="#FEF3C7" stroke="#FCD34D"/>
+  <text x="966" y="242" class="node-text">Show allowed modules only</text>
+  <line x1="282" y1="237" x2="348" y2="237" class="connector"/>
+  <line x1="568" y1="237" x2="636" y2="237" class="connector"/>
+  <line x1="866" y1="237" x2="934" y2="237" class="connector"/>
+
+  <rect x="40" y="306" width="1520" height="250" rx="26" fill="white" stroke="#BFDBFE" filter="url(#shadow)"/>
+  <rect x="40" y="306" width="18" height="250" rx="9" fill="#2563EB"/>
+  <text x="78" y="346" class="lane-title">Administrator Workflow</text>
+  <text x="78" y="372" class="small">Controls users, teams, projects, reports, settings, and overall system visibility.</text>
+
+  <rect x="92" y="404" width="220" height="74" rx="18" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="132" y="432" class="section-title">User Management</text>
+  <text x="112" y="455" class="small">Add, edit, delete users</text>
+  <text x="112" y="473" class="small">Assign roles, activate or deactivate</text>
+
+  <rect x="370" y="404" width="220" height="74" rx="18" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="416" y="432" class="section-title">Team Management</text>
+  <text x="390" y="455" class="small">Create teams and assign members</text>
+  <text x="390" y="473" class="small">Assign project manager to team</text>
+
+  <rect x="648" y="404" width="240" height="74" rx="18" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="690" y="432" class="section-title">Project Management</text>
+  <text x="668" y="455" class="small">Create, edit, delete projects</text>
+  <text x="668" y="473" class="small">Assign team to project</text>
+
+  <rect x="946" y="404" width="230" height="74" rx="18" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="1000" y="432" class="section-title">Reports</text>
+  <text x="966" y="455" class="small">Project, employee, pending,</text>
+  <text x="966" y="473" class="small">completed, monthly progress</text>
+
+  <rect x="1234" y="404" width="220" height="74" rx="18" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="1306" y="432" class="section-title">Settings</text>
+  <text x="1254" y="455" class="small">Update profile and password</text>
+  <text x="1254" y="473" class="small">Admin-only configuration</text>
+
+  <rect x="610" y="502" width="330" height="34" rx="17" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text x="653" y="524" class="node-text">Project progress is auto-calculated from completed tasks</text>
+
+  <line x1="312" y1="441" x2="370" y2="441" class="connector"/>
+  <line x1="590" y1="441" x2="648" y2="441" class="connector"/>
+  <line x1="888" y1="441" x2="946" y2="441" class="connector"/>
+  <line x1="1176" y1="441" x2="1234" y2="441" class="connector"/>
+
+  <rect x="40" y="588" width="1520" height="250" rx="26" fill="white" stroke="#BBF7D0" filter="url(#shadow)"/>
+  <rect x="40" y="588" width="18" height="250" rx="9" fill="#16A34A"/>
+  <text x="78" y="628" class="lane-title">Project Manager Workflow</text>
+  <text x="78" y="654" class="small">Works inside assigned projects and drives planning, execution, monitoring, and reporting.</text>
+
+  <rect x="92" y="686" width="220" height="74" rx="18" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="126" y="714" class="section-title">Assigned Projects</text>
+  <text x="112" y="737" class="small">Open assigned projects</text>
+  <text x="112" y="755" class="small">View project timeline and progress</text>
+
+  <rect x="370" y="686" width="220" height="74" rx="18" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="430" y="714" class="section-title">Task Planning</text>
+  <text x="390" y="737" class="small">Create tasks inside project</text>
+  <text x="390" y="755" class="small">Set due date, priority, status</text>
+
+  <rect x="648" y="686" width="230" height="74" rx="18" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="698" y="714" class="section-title">Task Assignment</text>
+  <text x="668" y="737" class="small">Assign tasks to project team</text>
+  <text x="668" y="755" class="small">Monitor pending and overdue work</text>
+
+  <rect x="936" y="686" width="240" height="74" rx="18" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="990" y="714" class="section-title">Collaboration</text>
+  <text x="956" y="737" class="small">Upload attachments and review</text>
+  <text x="956" y="755" class="small">comments and replies</text>
+
+  <rect x="1234" y="686" width="220" height="74" rx="18" fill="#DCFCE7" stroke="#86EFAC"/>
+  <text x="1284" y="714" class="section-title">Reports</text>
+  <text x="1254" y="737" class="small">Generate project and team</text>
+  <text x="1254" y="755" class="small">performance reports</text>
+
+  <rect x="548" y="784" width="500" height="34" rx="17" fill="#F0FDF4" stroke="#BBF7D0"/>
+  <text x="590" y="806" class="node-text">Project manager dashboard tracks assigned projects, today's tasks, pending tasks, and overdue tasks</text>
+
+  <line x1="312" y1="723" x2="370" y2="723" class="connector"/>
+  <line x1="590" y1="723" x2="648" y2="723" class="connector"/>
+  <line x1="878" y1="723" x2="936" y2="723" class="connector"/>
+  <line x1="1176" y1="723" x2="1234" y2="723" class="connector"/>
+
+  <rect x="40" y="870" width="1520" height="220" rx="26" fill="white" stroke="#FECACA" filter="url(#shadow)"/>
+  <rect x="40" y="870" width="18" height="220" rx="9" fill="#DC2626"/>
+  <text x="78" y="910" class="lane-title">Team Member Workflow</text>
+  <text x="78" y="936" class="small">Focuses only on assigned tasks, deadlines, status updates, comments, and attachments.</text>
+
+  <rect x="92" y="968" width="220" height="74" rx="18" fill="#FEE2E2" stroke="#FCA5A5"/>
+  <text x="142" y="996" class="section-title">My Tasks</text>
+  <text x="112" y="1019" class="small">View assigned tasks only</text>
+  <text x="112" y="1037" class="small">See real task status and due date</text>
+
+  <rect x="370" y="968" width="220" height="74" rx="18" fill="#FEE2E2" stroke="#FCA5A5"/>
+  <text x="405" y="996" class="section-title">Status Update</text>
+  <text x="390" y="1019" class="small">Change status of assigned or</text>
+  <text x="390" y="1037" class="small">overdue tasks</text>
+
+  <rect x="648" y="968" width="220" height="74" rx="18" fill="#FEE2E2" stroke="#FCA5A5"/>
+  <text x="704" y="996" class="section-title">Comments</text>
+  <text x="668" y="1019" class="small">Add comments and replies</text>
+  <text x="668" y="1037" class="small">on task collaboration thread</text>
+
+  <rect x="926" y="968" width="230" height="74" rx="18" fill="#FEE2E2" stroke="#FCA5A5"/>
+  <text x="972" y="996" class="section-title">Attachments</text>
+  <text x="946" y="1019" class="small">Upload PDF, DOC, DOCX,</text>
+  <text x="946" y="1037" class="small">JPG, JPEG, PNG</text>
+
+  <rect x="1214" y="968" width="240" height="74" rx="18" fill="#FEE2E2" stroke="#FCA5A5"/>
+  <text x="1258" y="996" class="section-title">Project Timeline</text>
+  <text x="1234" y="1019" class="small">View project progress and</text>
+  <text x="1234" y="1037" class="small">track own work contribution</text>
+
+  <line x1="312" y1="1005" x2="370" y2="1005" class="connector"/>
+  <line x1="590" y1="1005" x2="648" y2="1005" class="connector"/>
+  <line x1="868" y1="1005" x2="926" y2="1005" class="connector"/>
+  <line x1="1156" y1="1005" x2="1214" y2="1005" class="connector"/>
+
+  <path d="M 1340 254 C 1460 254, 1460 438, 1454 438" class="connector"/>
+  <path d="M 1454 760 C 1460 760, 1460 1004, 1454 1004" class="connector"/>
+  <path d="M 1454 1004 C 1454 1088, 1180 1088, 1180 1088" class="connector"/>
+  <rect x="936" y="1068" width="420" height="42" rx="21" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow)"/>
+  <text x="972" y="1094" class="node-text">Task completion updates project progress, dashboards, reports, and tracking views</text>
+</svg>

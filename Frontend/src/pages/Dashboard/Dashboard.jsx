@@ -117,6 +117,7 @@ const getDueText = (task) => {
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
+  const currentUserId = String(user?._id || user?.id || "");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTaskTab, setActiveTaskTab] = useState("All");
   const [projects, setProjects] = useState([]);
@@ -168,21 +169,21 @@ const Dashboard = () => {
   const assignedTasks = useMemo(
     () =>
       tasks.filter(
-        (task) => String(task.assignedTo?._id || task.assignedTo || "") === String(user?._id || "")
+        (task) => String(task.assignedTo?._id || task.assignedTo || "") === currentUserId
       ),
-    [tasks, user?._id]
+    [currentUserId, tasks]
   );
 
   const assignedProjects = useMemo(
     () =>
       projects.filter((project) => {
-        const isOwner = String(project.owner?._id || project.owner || "") === String(user?._id || "");
+        const isOwner = String(project.owner?._id || project.owner || "") === currentUserId;
         const isMember = (project.members || []).some(
-          (member) => String(member.user?._id || member.user || "") === String(user?._id || "")
+          (member) => String(member.user?._id || member.user || "") === currentUserId
         );
         return isOwner || isMember;
       }),
-    [projects, user?._id]
+    [currentUserId, projects]
   );
 
   const totalProjects = projects.length;
@@ -193,11 +194,15 @@ const Dashboard = () => {
     (task) => task.status !== "Completed" && task.dueDate && new Date(task.dueDate) < new Date()
   ).length;
   const teamMembersCount = users.filter((entry) => entry.role !== "admin").length;
-  const todaysTasks = assignedTasks.filter(
+  const managedProjectIds = assignedProjects.map((project) => String(project._id));
+  const managedProjectTasks = tasks.filter((task) =>
+    managedProjectIds.includes(String(task.project?._id || task.project || ""))
+  );
+  const todaysTasks = managedProjectTasks.filter(
     (task) => task.dueDate && new Date(task.dueDate).toDateString() === new Date().toDateString()
   ).length;
-  const assignedPendingTasks = assignedTasks.filter((task) => task.status !== "Completed").length;
-  const assignedOverdueTasks = assignedTasks.filter(
+  const assignedPendingTasks = managedProjectTasks.filter((task) => task.status !== "Completed").length;
+  const assignedOverdueTasks = managedProjectTasks.filter(
     (task) => task.status !== "Completed" && task.dueDate && new Date(task.dueDate) < new Date()
   ).length;
   const upcomingDeadlinesCount = assignedTasks.filter(
@@ -205,14 +210,16 @@ const Dashboard = () => {
   ).length;
   const assignedCompletedTasks = assignedTasks.filter((task) => task.status === "Completed").length;
 
+  const pendingChartCount = user?.role === "project_manager" ? assignedPendingTasks : pendingTasks;
+  const overdueChartCount = user?.role === "project_manager" ? assignedOverdueTasks : overdueTasks;
   const sparklineData = useMemo(
     () => ({
       projects: [0, 0, 0, 0, 0, 0, totalProjects],
       tasks: [0, 0, 0, 0, 0, 0, totalTasks],
       completed: [0, 0, 0, 0, 0, 0, completedTasks],
-      pending: [0, 0, 0, 0, 0, 0, pendingTasks],
+      pending: [0, 0, 0, 0, 0, 0, pendingChartCount],
       members: [0, 0, 0, 0, 0, 0, teamMembersCount],
-      overdue: [0, 0, 0, 0, 0, 0, overdueTasks],
+      overdue: [0, 0, 0, 0, 0, 0, overdueChartCount],
       today: [0, 0, 0, 0, 0, 0, todaysTasks],
       assigned: [0, 0, 0, 0, 0, 0, assignedTasks.length],
       upcoming: [0, 0, 0, 0, 0, 0, upcomingDeadlinesCount],
@@ -220,8 +227,8 @@ const Dashboard = () => {
     [
       assignedTasks.length,
       completedTasks,
-      overdueTasks,
-      pendingTasks,
+      overdueChartCount,
+      pendingChartCount,
       teamMembersCount,
       todaysTasks,
       totalProjects,
@@ -242,6 +249,9 @@ const Dashboard = () => {
   );
 
   const lineChartData = useMemo(() => {
+    const taskSource =
+      user?.role === "project_manager" ? managedProjectTasks : tasks;
+
     const baseDays = [
       { name: "Mon", Completed: 0, "In Progress": 0, Review: 0, "To Do": 0 },
       { name: "Tue", Completed: 0, "In Progress": 0, Review: 0, "To Do": 0 },
@@ -253,7 +263,7 @@ const Dashboard = () => {
     ];
 
     const labelByDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    tasks.forEach((task) => {
+    taskSource.forEach((task) => {
       const taskDate = task.updatedAt ? new Date(task.updatedAt) : new Date(task.createdAt || Date.now());
       const dayLabel = labelByDay[taskDate.getDay()];
       const row = baseDays.find((entry) => entry.name === dayLabel);
@@ -266,7 +276,7 @@ const Dashboard = () => {
     });
 
     return baseDays;
-  }, [tasks]);
+  }, [managedProjectTasks, tasks, user?.role]);
 
   const visibleTaskList = useMemo(() => {
     const sourceTasks = isAdmin ? tasks : assignedTasks;
