@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import "./CreateProjectModal.css"; // reuse same styles
 
+const getTodayDateString = () => new Date().toISOString().split("T")[0];
+
+const getPastDateString = (daysBack) => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysBack);
+  return date.toISOString().split("T")[0];
+};
+
 const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], teams = [] }) => {
+  const todayDate = getTodayDateString();
+  const minimumStartDate = getPastDateString(30);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -9,7 +19,6 @@ const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], team
     priority: "Medium",
     startDate: "",
     endDate: "",
-    progress: 0,
     team: "",
     members: [],
   });
@@ -24,16 +33,15 @@ const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], team
         priority: project.priority || "Medium",
         startDate: project.startDate
           ? new Date(project.startDate).toISOString().split("T")[0]
-          : "",
+          : todayDate,
         endDate: project.endDate
           ? new Date(project.endDate).toISOString().split("T")[0]
           : "",
-        progress: project.progress !== undefined ? project.progress : 0,
         team: project.team?._id || project.team || "",
         members: Array.isArray(project.members) ? project.members.map(m => m.user?._id || m.user || m._id || m) : [],
       });
     }
-  }, [project]);
+  }, [project, todayDate]);
 
   const handleChange = (e) => {
     if (e.target.name === "team") {
@@ -99,7 +107,6 @@ const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], team
     }
     onUpdate(project._id, {
       ...formData,
-      progress: Number(formData.progress) || 0
     });
   };
 
@@ -155,6 +162,8 @@ const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], team
               name="startDate"
               value={formData.startDate}
               onChange={handleChange}
+              min={minimumStartDate}
+              max={todayDate}
             />
           </div>
           <div className="modal-col">
@@ -163,20 +172,6 @@ const EditProjectModal = ({ isOpen, project, onClose, onUpdate, users = [], team
               type="date"
               name="endDate"
               value={formData.endDate}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        <div className="modal-row">
-          <div className="modal-col">
-            <label style={{ color: "#94a3b8", fontSize: "12.5px" }}>Completion Progress (%)</label>
-            <input
-              type="number"
-              name="progress"
-              min="0"
-              max="100"
-              value={formData.progress}
               onChange={handleChange}
             />
           </div>

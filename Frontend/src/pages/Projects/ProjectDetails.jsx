@@ -475,9 +475,16 @@ const ProjectDetails = () => {
                 <div className="details-stat-row">
                   <div className="stat-label-with-icon">
                     <FaHourglassHalf style={{ color: "#f59e0b" }} />
-                    <span>Pending Tasks</span>
+                    <span>Review Tasks</span>
                   </div>
-                  <span className="details-stat-number" style={{ color: "#f59e0b" }}>{stats.pendingTasks}</span>
+                  <span className="details-stat-number" style={{ color: "#f59e0b" }}>{stats.reviewTasks}</span>
+                </div>
+                <div className="details-stat-row">
+                  <div className="stat-label-with-icon">
+                    <FaClock style={{ color: "#f97316" }} />
+                    <span>To Do Tasks</span>
+                  </div>
+                  <span className="details-stat-number" style={{ color: "#f97316" }}>{stats.pendingTasks}</span>
                 </div>
               </div>
             </div>

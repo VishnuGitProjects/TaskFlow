@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { FaBell, FaSearch, FaBars, FaChevronDown, FaSignOutAlt, FaRegCommentDots } from "react-icons/fa";
+import { FaBell, FaSearch, FaBars, FaChevronDown, FaSignOutAlt } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getNotifications, markAsRead, markAllAsRead } from "../../services/notificationService";
-import { getUnreadMessagesCount } from "../../services/messageService";
 import { getProjects } from "../../services/projectService";
 import { getTasks } from "../../services/taskService";
 import { getUsers } from "../../services/userService";
@@ -29,7 +28,6 @@ const Navbar = ({ onToggleSidebar }) => {
   const [allData, setAllData] = useState({ projects: [], tasks: [], users: [], teams: [] });
   const [dataLoaded, setDataLoaded] = useState(false);
   const [userProjects, setUserProjects] = useState([]);
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   useEffect(() => {
     if (!user) return;
     const fetchUserProjects = async () => {
@@ -66,35 +64,6 @@ const Navbar = ({ onToggleSidebar }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const data = await getUnreadMessagesCount();
-        const count = data.totalUnread || 0;
-        setUnreadMessagesCount(count);
-        sessionStorage.setItem("unreadMessagesCount", count);
-        window.dispatchEvent(new CustomEvent("unreadMessagesUpdate", { detail: count }));
-      } catch (err) {
-        console.error("Failed to fetch unread messages count:", err);
-      }
-    };
-
-    fetchUnreadCount();
-
-    const handleRefresh = () => {
-      fetchUnreadCount();
-    };
-
-    window.addEventListener("refreshUnreadCount", handleRefresh);
-
-    const interval = setInterval(fetchUnreadCount, 12000);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("refreshUnreadCount", handleRefresh);
-    };
-  }, [user]);
   // Load all entities in parallel when search gets focus
   const loadSearchData = async () => {
     if (dataLoaded) return;
@@ -180,10 +149,7 @@ const Navbar = ({ onToggleSidebar }) => {
       if (!n.isRead) {
         await handleMarkAsRead(n._id);
       }
-      if (n.type === "new_message" && n.relatedId) {
-        navigate(`/messages?projectId=${n.relatedId}`);
-        setShowNotifications(false);
-      }
+      setShowNotifications(false);
     } catch (err) {
       console.error("Failed to process notification click:", err);
     }
@@ -302,16 +268,6 @@ const Navbar = ({ onToggleSidebar }) => {
                 )}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Messages Icon with Badge */}
-        <div className="nav-icon-container" onClick={() => navigate("/messages")}>
-          <FaRegCommentDots className="nav-icon" />
-          {unreadMessagesCount > 0 && (
-            <span className="nav-badge">
-              {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
-            </span>
           )}
         </div>
 

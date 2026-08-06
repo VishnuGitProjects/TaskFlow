@@ -65,7 +65,6 @@ const Tasks = () => {
     dueDate: "",
     project: "",
     assignedTo: "",
-    progress: "",
   });
 
   const loadData = async () => {
@@ -187,7 +186,6 @@ const Tasks = () => {
       dueDate: "",
       project: firstProjId,
       assignedTo: assignees[0]?._id || "",
-      progress: "",
     });
     setEditingTask(null);
     setShowCreateModal(true);
@@ -203,7 +201,6 @@ const Tasks = () => {
       dueDate: task.dueDate ? task.dueDate.substring(0, 10) : "",
       project: task.project?._id || task.project || "",
       assignedTo: task.assignedTo?._id || task.assignedTo || "",
-      progress: task.progress !== undefined ? task.progress : "",
     });
     setShowCreateModal(true);
   };
@@ -211,18 +208,16 @@ const Tasks = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...formData,
-        progress: formData.progress === "" ? 0 : Number(formData.progress),
-      };
-
       if (editingTask) {
+        const payload = canEditTaskMetadata()
+          ? { ...formData }
+          : { status: formData.status };
         const updated = await updateTask(editingTask._id, payload);
         if (selectedTask?._id === editingTask._id) {
           setSelectedTask(updated);
         }
       } else {
-        await createTask(payload);
+        await createTask({ ...formData });
       }
       setShowCreateModal(false);
       loadData();
@@ -520,7 +515,6 @@ const Tasks = () => {
                   <th>Priority</th>
                   <th>Due Date</th>
                   <th>Status</th>
-                  <th>Progress</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -528,7 +522,6 @@ const Tasks = () => {
                 {filteredTasksList.map((task) => {
                   const priority = task.priority || "Medium";
                   const status = task.status || "To Do";
-                  const progress = task.progress !== undefined ? task.progress : 50;
 
                   return (
                     <tr key={task._id} style={{ cursor: "pointer" }} onClick={() => setSelectedTask(task)}>
@@ -571,14 +564,6 @@ const Tasks = () => {
                         <span className={`status-pill status-${status.toLowerCase().replace(" ", "")}`}>
                           {status}
                         </span>
-                      </td>
-                      <td>
-                        <div className="progress-table-cell">
-                          <span>{progress}%</span>
-                          <div className="progress-bar-wrapper">
-                            <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
-                          </div>
-                        </div>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="table-actions-cell">
@@ -836,35 +821,10 @@ const Tasks = () => {
                   </div>
 
                   <div className="people-row" style={{ marginTop: "10px" }}>
-                    <span>Completion Progress</span>
-                    <div className="circular-progress-box">
-                      <div className="progress-circle-svg">
-                        <svg>
-                          <defs>
-                            <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#3b82f6" />
-                              <stop offset="100%" stopColor="#10b981" />
-                            </linearGradient>
-                          </defs>
-                          <circle className="circle-bg" cx="30" cy="30" r="24" />
-                          <circle
-                            className="circle-val"
-                            cx="30"
-                            cy="30"
-                            r="24"
-                            strokeDasharray={2 * Math.PI * 24}
-                            strokeDashoffset={2 * Math.PI * 24 * (1 - (selectedTask.progress !== undefined ? selectedTask.progress : 50) / 100)}
-                          />
-                        </svg>
-                        <div className="progress-circle-text">
-                          {selectedTask.progress !== undefined ? selectedTask.progress : 50}%
-                        </div>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Visualizer</span>
-                        <p style={{ margin: "2px 0 0 0", fontSize: "13px", fontWeight: "600" }}>Task Status Rate</p>
-                      </div>
-                    </div>
+                    <span>Current Stage</span>
+                    <p style={{ margin: "6px 0 0 0", color: "rgba(255,255,255,0.72)", fontSize: "13px" }}>
+                      This task is currently in the <strong style={{ color: "#fff" }}>{selectedTask.status || "To Do"}</strong> stage.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -984,28 +944,6 @@ const Tasks = () => {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Completion Progress (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={formData.progress}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "") {
-                          setFormData({ ...formData, progress: "" });
-                        } else {
-                          const num = Number(val);
-                          if (num >= 0 && num <= 100) {
-                            setFormData({ ...formData, progress: num });
-                          }
-                        }
-                      }}
-                      disabled={!canEditTaskStatus()}
-                    />
-                  </div>
                 </div>
               </div>
 

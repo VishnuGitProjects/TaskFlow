@@ -12,6 +12,36 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "image/jpg",
 ];
 
+const recalculateProjectProgress = async (projectId) => {
+  const totalTasks = await Task.countDocuments({ project: projectId });
+  let progress = 0;
+
+  if (totalTasks > 0) {
+    const completedTasks = await Task.countDocuments({
+      project: projectId,
+      status: "Completed",
+    });
+    progress = Math.round((completedTasks / totalTasks) * 100);
+  }
+
+  await Project.findByIdAndUpdate(projectId, { progress });
+  return progress;
+};
+
+const getTaskProgressFromStatus = (status) => {
+  switch (status) {
+    case "Completed":
+      return 100;
+    case "Review":
+      return 85;
+    case "In Progress":
+      return 50;
+    case "To Do":
+    default:
+      return 0;
+  }
+};
+
 const getProjectMemberRole = (projectDoc, userId) => {
   if (String(projectDoc.owner) === String(userId)) {
     return "owner";
@@ -100,9 +130,11 @@ const createTask = async (req, res) => {
       dueDate,
       project,
       assignedTo: assignedTo || null,
-      progress: progress || 0,
+      progress: progress !== undefined ? progress : getTaskProgressFromStatus(status),
       createdBy: req.user._id,
     });
+
+    await recalculateProjectProgress(project);
 
     // Populate for response
     await populateTaskDetails(task);
@@ -241,7 +273,7 @@ const updateTask = async (req, res) => {
       }
       const { status, progress } = req.body;
       if (status) task.status = status;
-      if (progress !== undefined) task.progress = progress;
+      task.progress = progress !== undefined ? progress : getTaskProgressFromStatus(task.status);
     } else {
       // Owner/Admin: can update everything
       const { title, description, status, priority, dueDate, assignedTo, progress } = req.body;
@@ -267,12 +299,13 @@ const updateTask = async (req, res) => {
       if (priority) task.priority = priority;
       if (dueDate !== undefined) task.dueDate = dueDate;
       if (assignedTo !== undefined) task.assignedTo = assignedTo;
-      if (progress !== undefined) task.progress = progress;
+      task.progress = progress !== undefined ? progress : getTaskProgressFromStatus(task.status);
     }
 
     const oldAssignedTo = task.assignedTo ? String(task.assignedTo) : null;
 
     const updated = await task.save();
+    await recalculateProjectProgress(updated.project);
     await populateTaskDetails(updated);
 
     const newAssignedTo = updated.assignedTo ? String(updated.assignedTo._id || updated.assignedTo) : null;
@@ -426,7 +459,9 @@ const deleteTask = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this task. Only project owners or project managers can delete tasks." });
     }
 
+    const projectId = task.project;
     await task.deleteOne();
+    await recalculateProjectProgress(projectId);
 
     res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {

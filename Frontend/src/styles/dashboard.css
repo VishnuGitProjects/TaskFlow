@@ -6,6 +6,21 @@
   width: 100%;
 }
 
+.dashboard-loading-card,
+.dashboard-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px;
+}
+
 /* Welcome Header & Date Selector */
 .dashboard-top-bar {
   display: flex;
@@ -223,6 +238,20 @@
   width: 100%;
 }
 
+.dashboard-content-grid {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+}
+
+.dashboard-content-grid.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-content-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .dash-card {
   position: relative;
   background: rgba(255, 255, 255, 0.02) !important;
@@ -236,6 +265,10 @@
   min-height: 310px;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dashboard-content-grid .dash-card {
+  min-height: 360px;
 }
 
 .dash-card:hover {
@@ -559,6 +592,39 @@
   gap: 4px;
 }
 
+.dashboard-task-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-task-status.status-to-do {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+.dashboard-task-status.status-in-progress {
+  background: rgba(59, 130, 246, 0.16);
+  color: #93c5fd;
+}
+
+.dashboard-task-status.status-review {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+}
+
+.dashboard-task-status.status-completed {
+  background: rgba(16, 185, 129, 0.16);
+  color: #86efac;
+}
+
 .task-due-date {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.55);
@@ -844,7 +910,9 @@
 
 @media (max-width: 1150px) {
   .dashboard-middle-grid,
-  .dashboard-bottom-grid {
+  .dashboard-bottom-grid,
+  .dashboard-content-grid.cols-2,
+  .dashboard-content-grid.cols-3 {
     grid-template-columns: 1fr;
   }
 }

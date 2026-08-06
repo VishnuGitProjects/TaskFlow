@@ -1,15 +1,24 @@
 import { useMemo, useState } from "react";
 import "./CreateProjectModal.css";
 
+const getTodayDateString = () => new Date().toISOString().split("T")[0];
+
+const getPastDateString = (daysBack) => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysBack);
+  return date.toISOString().split("T")[0];
+};
+
 const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] }) => {
+  const todayDate = getTodayDateString();
+  const minimumStartDate = getPastDateString(30);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     status: "Planning",
     priority: "Medium",
-    startDate: "",
+    startDate: todayDate,
     endDate: "",
-    progress: 0,
     team: "",
     members: [],
   });
@@ -79,7 +88,6 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] 
     }
     onCreate({
       ...formData,
-      progress: Number(formData.progress) || 0
     });
     // Reset form
     setFormData({
@@ -87,9 +95,8 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] 
       description: "",
       status: "Planning",
       priority: "Medium",
-      startDate: "",
+      startDate: todayDate,
       endDate: "",
-      progress: 0,
       team: "",
       members: [],
     });
@@ -147,6 +154,8 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] 
               name="startDate"
               value={formData.startDate}
               onChange={handleChange}
+              min={minimumStartDate}
+              max={todayDate}
             />
           </div>
           <div className="modal-col">
@@ -155,20 +164,6 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, users = [], teams = [] 
               type="date"
               name="endDate"
               value={formData.endDate}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        <div className="modal-row">
-          <div className="modal-col">
-            <label style={{ color: "#94a3b8", fontSize: "12.5px" }}>Completion Progress (%)</label>
-            <input
-              type="number"
-              name="progress"
-              min="0"
-              max="100"
-              value={formData.progress}
               onChange={handleChange}
             />
           </div>

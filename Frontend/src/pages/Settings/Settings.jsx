@@ -1,573 +1,264 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { FaCheck, FaEye, FaEyeSlash, FaLock, FaUser } from "react-icons/fa";
 import MainLayout from "../../layouts/MainLayout";
-import { APP_CONFIG } from "../../app/config/appConfig";
 import { useAuth } from "../../context/AuthContext";
-import { getProjects } from "../../services/projectService";
-import { getTeams } from "../../services/teamService";
-import { changePassword, updateProfile, deleteAccount } from "../../services/authService";
-import {
-  FaSlidersH,
-  FaUser,
-  FaLock,
-  FaBell,
-  FaUsers,
-  FaCreditCard,
-  FaCogs,
-  FaPalette,
-  FaGlobe,
-  FaCloudDownloadAlt,
-  FaChevronRight,
-  FaEye,
-  FaEyeSlash,
-  FaCheck,
-  FaExclamationTriangle,
-} from "react-icons/fa";
+import { changePassword, updateProfile } from "../../services/authService";
 import "../../styles/settings.css";
 
+const cardStyle = {
+  background: "linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%)",
+  border: "1px solid rgba(148,163,184,0.14)",
+  borderRadius: "24px",
+  padding: "28px",
+  boxShadow: "0 24px 60px rgba(2, 6, 23, 0.35)",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: "14px",
+  border: "1px solid rgba(148,163,184,0.16)",
+  background: "rgba(15,23,42,0.78)",
+  color: "#fff",
+  outline: "none",
+};
+
+const labelStyle = {
+  display: "block",
+  marginBottom: "8px",
+  color: "rgba(226,232,240,0.78)",
+  fontSize: "13px",
+};
+
+const buttonStyle = {
+  border: "none",
+  borderRadius: "14px",
+  padding: "12px 18px",
+  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+};
+
 const Settings = () => {
-  const { user, updateUser, logout } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [activeTab, setActiveTab] = useState("general");
-
-  const getDynamicRole = () => {
-    if (user?.role === "admin") return "Admin";
-    if (projects.length === 0) return "No projects yet";
-    const ownsAny = projects.some(p => String(p.owner?._id || p.owner) === String(user?._id));
-    return ownsAny ? "Project Owner" : "Team Member";
-  };
-
-  // Tab 1: General Settings (Persisted in localStorage)
-  const [generalSettings, setGeneralSettings] = useState(() => {
-    return {
-      timeZone: localStorage.getItem("setting_timeZone") || "(GMT+05:30) Asia/Kolkata",
-      dateFormat: localStorage.getItem("setting_dateFormat") || "MM DD, YYYY",
-      weekStartDay: localStorage.getItem("setting_weekStartDay") || "Monday",
-    };
-  });
-
-  // Tab 2: Profile Settings
+  const { user, updateUser } = useAuth();
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+    name: "",
+    email: "",
   });
-
-  // Tab 3: Security Settings
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [securityForm, setSecurityForm] = useState({
+  const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-
-  // Tab 8: Appearance Settings (Persisted in localStorage)
-  const [appPreferences, setAppPreferences] = useState(() => {
-    return {
-      defaultView: localStorage.getItem("setting_defaultView") || "Overview",
-      tasksPerPage: localStorage.getItem("setting_tasksPerPage") || "10",
-      darkMode: localStorage.getItem("setting_darkMode") !== "false",
-      compactMode: localStorage.getItem("setting_compactMode") === "true",
-    };
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    next: false,
+    confirm: false,
   });
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoadingStats(true);
-        const [projRes, teamRes] = await Promise.all([getProjects(), getTeams()]);
-        setProjects(projRes || []);
-        setTeams(teamRes || []);
-      } catch (err) {
-        console.error("Error fetching stats:", err);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
-  // Update profileForm if user changes in context
-  useEffect(() => {
-    if (user) {
-      setProfileForm({
-        name: user.name || "",
-        email: user.email || "",
-      });
-    }
+    setProfileForm({
+      name: user?.name || "",
+      email: user?.email || "",
+    });
   }, [user]);
 
-  // Handle General Settings Save
-  const handleSaveGeneral = (e) => {
+  const handleProfileSave = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
+    setSavingProfile(true);
+    setError("");
+    setSuccess("");
 
     try {
-      localStorage.setItem("setting_timeZone", generalSettings.timeZone);
-      localStorage.setItem("setting_dateFormat", generalSettings.dateFormat);
-      localStorage.setItem("setting_weekStartDay", generalSettings.weekStartDay);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      const response = await updateProfile(profileForm);
+      updateUser(response.user);
+      setSuccess("Profile updated successfully.");
     } catch (err) {
-      setError("Failed to save general settings.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Handle Profile Settings Save
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      const res = await updateProfile(profileForm);
-      updateUser(res.user);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error(err);
       setError(err.response?.data?.message || "Failed to update profile.");
     } finally {
-      setSaving(false);
+      setSavingProfile(false);
     }
   };
 
-  // Handle Password Submit
-  const handleSaveSecurity = async (e) => {
+  const handlePasswordSave = async (e) => {
     e.preventDefault();
-    const { currentPassword, newPassword, confirmPassword } = securityForm;
+    setSavingPassword(true);
+    setError("");
+    setSuccess("");
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
       setError("Please fill in all password fields.");
+      setSavingPassword(false);
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError("New password and confirm password do not match.");
+      setSavingPassword(false);
       return;
     }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
 
     try {
-      await changePassword(currentPassword, newPassword);
-      setSuccess(true);
-      setSecurityForm({
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      setPasswordForm({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
-      setTimeout(() => setSuccess(false), 3000);
+      setSuccess("Password changed successfully.");
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || "Incorrect current password or update failed.");
+      setError(err.response?.data?.message || "Failed to change password.");
     } finally {
-      setSaving(false);
+      setSavingPassword(false);
     }
   };
-
-  const handleDeleteAccount = async () => {
-    const confirmDelete = window.confirm(
-      "WARNING: Are you sure you want to permanently delete your account?\nAll projects you own, tasks, teams, and associated data will be permanently wiped. This action CANNOT be undone."
-    );
-    if (!confirmDelete) return;
-
-    try {
-      setSaving(true);
-      setError(null);
-      await deleteAccount();
-      alert("Your account has been permanently deleted.");
-      logout();
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || err.response?.data?.error || "Failed to delete account. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Handle Preferences Switch toggles
-  const handlePreferenceToggle = (key, val) => {
-    const updated = { ...appPreferences, [key]: val };
-    setAppPreferences(updated);
-    localStorage.setItem(`setting_${key}`, val);
-    
-    // Trigger global body dark mode toggle if changing dark mode
-    if (key === "darkMode") {
-      document.body.classList.toggle("light-theme", !val);
-    }
-  };
-
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((w) => w[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase()
-    : "U";
-
-  // Calculate member stats
-  const memberSinceDate = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : "Jan 15, 2025";
-
-  const userTeamsCount = teams.filter((team) => {
-    const memberIds = (team.members || []).map((m) => m._id || m);
-    if (team.manager) memberIds.push(team.manager._id || team.manager);
-    return memberIds.includes(user?.id || user?._id);
-  }).length;
 
   return (
     <MainLayout>
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", paddingBottom: "10px" }}>
-        <h1 style={{ fontFamily: "Outfit, sans-serif", fontSize: "28px", fontWeight: "700", color: "#fff" }}>
-          Settings
-        </h1>
-        <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.45)", marginBottom: "15px" }}>
-          Manage your account and system preferences
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "30px", color: "#fff", margin: 0 }}>Settings</h1>
+        <p style={{ margin: 0, color: "rgba(226,232,240,0.62)" }}>
+          Administrator profile and password management.
         </p>
       </div>
 
-      <div className="settings-layout">
-        {/* Left Side: Tabs Panel */}
-        <div className="settings-sidebar">
-          <button className={`settings-tab-btn ${activeTab === "general" ? "active" : ""}`} onClick={() => { setActiveTab("general"); setError(null); setSuccess(false); }}>
-            <div className="settings-tab-left">
-              <FaSlidersH />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">General</span>
-                <span className="settings-tab-desc">Basic settings and preferences</span>
-              </div>
-            </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "general" ? 0.8 : 0.2 }} />
-          </button>
+      {(error || success) && (
+        <div
+          style={{
+            ...cardStyle,
+            padding: "14px 18px",
+            marginBottom: "18px",
+            borderColor: error ? "rgba(239,68,68,0.3)" : "rgba(16,185,129,0.28)",
+            color: error ? "#fca5a5" : "#86efac",
+          }}
+        >
+          {error || success}
+        </div>
+      )}
 
-          <button className={`settings-tab-btn ${activeTab === "profile" ? "active" : ""}`} onClick={() => { setActiveTab("profile"); setError(null); setSuccess(false); }}>
-            <div className="settings-tab-left">
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "22px" }}>
+        <section style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <div className="settings-icon-badge">
               <FaUser />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">Profile</span>
-                <span className="settings-tab-desc">Update your personal information</span>
-              </div>
             </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "profile" ? 0.8 : 0.2 }} />
-          </button>
+            <div>
+              <h2 style={{ margin: 0, color: "#fff", fontSize: "22px" }}>User Profile</h2>
+              <p style={{ margin: "4px 0 0 0", color: "rgba(226,232,240,0.6)" }}>
+                Update the administrator display information.
+              </p>
+            </div>
+          </div>
 
-          <button className={`settings-tab-btn ${activeTab === "security" ? "active" : ""}`} onClick={() => { setActiveTab("security"); setError(null); setSuccess(false); }}>
-            <div className="settings-tab-left">
+          <form onSubmit={handleProfileSave} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+            <div>
+              <label style={labelStyle}>Full Name</label>
+              <input
+                type="text"
+                value={profileForm.name}
+                onChange={(e) => setProfileForm((current) => ({ ...current, name: e.target.value }))}
+                style={inputStyle}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Email Address</label>
+              <input
+                type="email"
+                value={profileForm.email}
+                onChange={(e) => setProfileForm((current) => ({ ...current, email: e.target.value }))}
+                style={inputStyle}
+                required
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+              <div style={{ color: "rgba(226,232,240,0.5)", fontSize: "13px" }}>
+                Role: <strong style={{ color: "#fff" }}>{user?.role || "admin"}</strong>
+              </div>
+              <button type="submit" style={buttonStyle} disabled={savingProfile}>
+                {savingProfile ? "Saving..." : "Save Profile"}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <div className="settings-icon-badge">
               <FaLock />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">Security</span>
-                <span className="settings-tab-desc">Password and security settings</span>
-              </div>
             </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "security" ? 0.8 : 0.2 }} />
-          </button>
-
-          <button className={`settings-tab-btn ${activeTab === "notifications" ? "active" : ""}`} onClick={() => setActiveTab("notifications")}>
-            <div className="settings-tab-left">
-              <FaBell />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">Notifications</span>
-                <span className="settings-tab-desc">Manage your notifications</span>
-              </div>
+            <div>
+              <h2 style={{ margin: 0, color: "#fff", fontSize: "22px" }}>Password</h2>
+              <p style={{ margin: "4px 0 0 0", color: "rgba(226,232,240,0.6)" }}>
+                Change the administrator password securely.
+              </p>
             </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "notifications" ? 0.8 : 0.2 }} />
-          </button>
+          </div>
 
-          <button className={`settings-tab-btn ${activeTab === "team" ? "active" : ""}`} onClick={() => setActiveTab("team")}>
-            <div className="settings-tab-left">
-              <FaUsers />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">Team</span>
-                <span className="settings-tab-desc">Team and member settings</span>
-              </div>
-            </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "team" ? 0.8 : 0.2 }} />
-          </button>
-
-          <button className={`settings-tab-btn ${activeTab === "language" ? "active" : ""}`} onClick={() => setActiveTab("language")}>
-            <div className="settings-tab-left">
-              <FaGlobe />
-              <div className="settings-tab-info">
-                <span className="settings-tab-title">Language & Region</span>
-                <span className="settings-tab-desc">Language and regional settings</span>
-              </div>
-            </div>
-            <FaChevronRight style={{ fontSize: "10px", opacity: activeTab === "language" ? 0.8 : 0.2 }} />
-          </button>
-        </div>
-
-        {/* Center Panel: Content Cards */}
-        <div className="settings-main">
-          {success && (
-            <div style={{ background: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(16, 185, 129, 0.25)", color: "#10b981", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <FaCheck /> Changes saved successfully!
-            </div>
-          )}
-
-          {error && (
-            <div style={{ background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.25)", color: "#ef4444", padding: "12px 16px", borderRadius: "12px", fontSize: "13px" }}>
-              ⚠️ {error}
-            </div>
-          )}
-
-          {/* Tab 1: General Settings */}
-          {activeTab === "general" && (
-            <form onSubmit={handleSaveGeneral} className="settings-card">
-              <div className="settings-card-header">
-                <h2>General Settings</h2>
-                <p>Manage your account preferences and application settings.</p>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group">
-                  <label className="settings-label">Default Time Zone</label>
-                  <select
-                    className="settings-select"
-                    value={generalSettings.timeZone}
-                    onChange={(e) => setGeneralSettings({ ...generalSettings, timeZone: e.target.value })}
-                  >
-                    <option value="(GMT+05:30) Asia/Kolkata">(GMT+05:30) Asia/Kolkata</option>
-                    <option value="(GMT-08:00) Pacific Time">(GMT-08:00) Pacific Time</option>
-                    <option value="(GMT+00:00) London">(GMT+00:00) UTC / London</option>
-                    <option value="(GMT+09:00) Tokyo">(GMT+09:00) Asia / Tokyo</option>
-                  </select>
-                </div>
-
-                <div className="settings-form-group">
-                  <label className="settings-label">Date Format</label>
-                  <select
-                    className="settings-select"
-                    value={generalSettings.dateFormat}
-                    onChange={(e) => setGeneralSettings({ ...generalSettings, dateFormat: e.target.value })}
-                  >
-                    <option value="MM DD, YYYY">May 23, 2025 (MM DD, YYYY)</option>
-                    <option value="DD/MM/YYYY">23/05/2025 (DD/MM/YYYY)</option>
-                    <option value="YYYY-MM-DD">2025-05-23 (YYYY-MM-DD)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group">
-                  <label className="settings-label">Week Start Day</label>
-                  <select
-                    className="settings-select"
-                    value={generalSettings.weekStartDay}
-                    onChange={(e) => setGeneralSettings({ ...generalSettings, weekStartDay: e.target.value })}
-                  >
-                    <option value="Monday">Monday</option>
-                    <option value="Sunday">Sunday</option>
-                  </select>
-                </div>
-              </div>
-
-              <button type="submit" className="btn-settings-save" disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </form>
-          )}
-
-          {/* Tab 2: Profile Settings */}
-          {activeTab === "profile" && (
-            <form onSubmit={handleSaveProfile} className="settings-card">
-              <div className="settings-card-header">
-                <h2>Profile Settings</h2>
-                <p>Update your personal info, email ID, and avatar details.</p>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group">
-                  <label className="settings-label">Full Name</label>
+          <form onSubmit={handlePasswordSave} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+            {[
+              ["currentPassword", "Current Password", "current"],
+              ["newPassword", "New Password", "next"],
+              ["confirmPassword", "Confirm Password", "confirm"],
+            ].map(([field, label, toggleKey]) => (
+              <div key={field}>
+                <label style={labelStyle}>{label}</label>
+                <div style={{ position: "relative" }}>
                   <input
-                    type="text"
+                    type={showPasswords[toggleKey] ? "text" : "password"}
+                    value={passwordForm[field]}
+                    onChange={(e) =>
+                      setPasswordForm((current) => ({ ...current, [field]: e.target.value }))
+                    }
+                    style={{ ...inputStyle, paddingRight: "50px" }}
                     required
-                    className="settings-input"
-                    value={profileForm.name}
-                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                   />
-                </div>
-
-                <div className="settings-form-group">
-                  <label className="settings-label">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    className="settings-input"
-                    value={profileForm.email}
-                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPasswords((current) => ({
+                        ...current,
+                        [toggleKey]: !current[toggleKey],
+                      }))
+                    }
+                    style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "transparent",
+                      border: "none",
+                      color: "rgba(226,232,240,0.6)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showPasswords[toggleKey] ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
+            ))}
 
-              <button type="submit" className="btn-settings-save" disabled={saving}>
-                {saving ? "Saving..." : "Save Profile"}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button type="submit" style={buttonStyle} disabled={savingPassword}>
+                {savingPassword ? "Updating..." : "Change Password"}
               </button>
-            </form>
-          )}
-
-          {/* Tab 3: Security Settings (Change Password) */}
-          {activeTab === "security" && (
-            <form onSubmit={handleSaveSecurity} className="settings-card">
-              <div className="settings-card-header">
-                <h2>Security Settings</h2>
-                <p>Update your password regularly for better security.</p>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group full-width">
-                  <label className="settings-label">Current Password</label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showCurrentPassword ? "text" : "password"}
-                      className="settings-input"
-                      style={{ width: "100%", paddingRight: "40px" }}
-                      value={securityForm.currentPassword}
-                      onChange={(e) => setSecurityForm({ ...securityForm, currentPassword: e.target.value })}
-                    />
-                    <span onClick={() => setShowCurrentPassword(!showCurrentPassword)} style={{ position: "absolute", right: "12px", top: "12px", cursor: "pointer", color: "rgba(255,255,255,0.4)" }}>
-                      {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-form-row">
-                <div className="settings-form-group">
-                  <label className="settings-label">New Password</label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      className="settings-input"
-                      style={{ width: "100%", paddingRight: "40px" }}
-                      value={securityForm.newPassword}
-                      onChange={(e) => setSecurityForm({ ...securityForm, newPassword: e.target.value })}
-                    />
-                    <span onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: "absolute", right: "12px", top: "12px", cursor: "pointer", color: "rgba(255,255,255,0.4)" }}>
-                      {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="settings-form-group">
-                  <label className="settings-label">Confirm New Password</label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      className="settings-input"
-                      style={{ width: "100%", paddingRight: "40px" }}
-                      value={securityForm.confirmPassword}
-                      onChange={(e) => setSecurityForm({ ...securityForm, confirmPassword: e.target.value })}
-                    />
-                    <span onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: "absolute", right: "12px", top: "12px", cursor: "pointer", color: "rgba(255,255,255,0.4)" }}>
-                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" className="btn-settings-save" disabled={saving}>
-                {saving ? "Updating..." : "Update Password"}
-              </button>
-            </form>
-          )}
-
-          {/* Tab placeholders for other buttons */}
-          {!["general", "profile", "security"].includes(activeTab) && (
-            <div className="settings-card" style={{ padding: "40px 20px", textAlign: "center" }}>
-              <FaCogs style={{ fontSize: "40px", color: "rgba(255,255,255,0.15)", marginBottom: "15px" }} />
-              <h3>{activeTab.toUpperCase()} Settings</h3>
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", marginTop: "6px" }}>This section is currently managed at the system configuration level.</p>
             </div>
-          )}
-
-          {/* Data Management Card (Always visible at the bottom of main settings content) */}
-          <div className="settings-card">
-            <div className="settings-card-header">
-              <h2>Data Management</h2>
-              <p>Manage your application data and local storage.</p>
-            </div>
-
-            <div className="action-row">
-              <div className="toggle-info">
-                <span className="toggle-title">Delete Account</span>
-                <span className="toggle-desc">Permanently wipe your account and all associated projects.</span>
-              </div>
-              <button className="btn-settings-action action-red" onClick={handleDeleteAccount} disabled={saving}>Delete Account</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Profile Summary & Storage widgets */}
-        <div className="settings-info-panel">
-          {/* Profile Summary Card */}
-          <div className="profile-summary-card">
-            <div className="settings-avatar-wrapper">
-              <div className="settings-avatar-circle" style={{ background: `linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)` }}>
-                {initials}
-              </div>
-            </div>
-
-            <h3>{user?.name || "User Name"}</h3>
-            <p className="role-subtitle">{getDynamicRole()}</p>
-            <p className="email-subtitle">{user?.email}</p>
-
-            <div className="profile-stats-divider"></div>
-
-            <div className="profile-stat-item">
-              <span className="profile-stat-lbl">Member Since</span>
-              <span className="profile-stat-val">{memberSinceDate}</span>
-            </div>
-
-            <div className="profile-stat-item">
-              <span className="profile-stat-lbl">Role</span>
-              <span className="profile-stat-val">{getDynamicRole()}</span>
-            </div>
-
-            <div className="profile-stat-item">
-              <span className="profile-stat-lbl">Teams</span>
-              <span className="profile-stat-val">{loadingStats ? "..." : `${userTeamsCount} Teams`}</span>
-            </div>
-
-            <div className="profile-stat-item">
-              <span className="profile-stat-lbl">Projects</span>
-              <span className="profile-stat-val">{loadingStats ? "..." : `${projects.length} Projects`}</span>
-            </div>
-          </div>
-
-
-          {/* Danger Zone Card */}
-          <div className="danger-zone-card">
-            <h3>Danger Zone</h3>
-            <p>This action cannot be undone. Please proceed with caution.</p>
-            <button className="btn-reset-settings" onClick={() => alert("Settings reset request sent.")}>Reset All Settings</button>
-          </div>
-        </div>
+          </form>
+        </section>
       </div>
 
-      {/* Settings Footer */}
-      <div className="settings-footer">
-        <span>{APP_CONFIG.copyrightText}</span>
-        <div className="settings-footer-links">
-          <span>Privacy Policy</span>
-          <span>Terms of Service</span>
-          <span>Help Center</span>
-        </div>
+      <div style={{ ...cardStyle, marginTop: "22px", display: "flex", alignItems: "center", gap: "12px" }}>
+        <FaCheck style={{ color: "#22c55e" }} />
+        <p style={{ margin: 0, color: "rgba(226,232,240,0.68)" }}>
+          This page has been limited to the exact administrator settings required by the project: user profile and password.
+        </p>
       </div>
     </MainLayout>
   );

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   FaHome,
   FaFolderOpen,
@@ -9,7 +8,6 @@ import {
   FaUserShield,
   FaChevronRight,
   FaChevronDown,
-  FaRegCommentDots,
   FaChartLine,
 } from "react-icons/fa";
 import { MdChecklist } from "react-icons/md";
@@ -28,24 +26,11 @@ const iconMap = {
   "/users": <FaUserShield />,
   "/progress": <FaChartLine />,
   "/reports": <FaChartBar />,
-  "/messages": <FaRegCommentDots />,
   "/settings": <FaCog />,
 };
 
 const Sidebar = ({ isCollapsed, onClose }) => {
-  const { isAdmin, user } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(() => {
-    return parseInt(sessionStorage.getItem("unreadMessagesCount") || "0", 10);
-  });
-
-  useEffect(() => {
-    const handleUpdate = (e) => {
-      setUnreadCount(e.detail);
-    };
-
-    window.addEventListener("unreadMessagesUpdate", handleUpdate);
-    return () => window.removeEventListener("unreadMessagesUpdate", handleUpdate);
-  }, []);
+  const { user } = useAuth();
 
   const handleItemClick = () => {
     if (window.innerWidth <= 768 && onClose) {
@@ -53,10 +38,9 @@ const Sidebar = ({ isCollapsed, onClose }) => {
     }
   };
 
-  const sidebarItems = APP_NAVIGATION.filter((item) => {
-    if (item.path === "/calendar") return false;
-    return hasRequiredRole(user?.role, item.roles || []);
-  });
+  const sidebarItems = APP_NAVIGATION.filter((item) =>
+    hasRequiredRole(user?.role, item.roles || [])
+  );
 
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
@@ -112,11 +96,6 @@ const Sidebar = ({ isCollapsed, onClose }) => {
               <div className="menu-item-left">
                 {iconMap[item.path]}
                 <span>{item.label}</span>
-                {item.path === "/messages" && unreadCount > 0 && (
-                  <div className="sidebar-badge">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </div>
-                )}
               </div>
               {item.path !== "/dashboard" && <FaChevronRight className="menu-item-arrow" />}
             </NavLink>

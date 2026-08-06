@@ -1,4 +1,5 @@
 const Project = require("../models/Project");
+const Task = require("../models/Task");
 const User = require("../models/User");
 const Team = require("../models/Team");
 const {
@@ -8,6 +9,63 @@ const {
 
 const getGlobalRoleFromProjectRole = (projectRole) => {
   return projectRole === "project_manager" ? "project_manager" : "team_member";
+};
+
+const START_DATE_WINDOW_DAYS = 30;
+
+const formatDateOnly = (date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayDateOnly = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const resolveProjectStartDate = (startDateValue) => {
+  const today = getTodayDateOnly();
+  const minimum = new Date(today);
+  minimum.setDate(minimum.getDate() - START_DATE_WINDOW_DAYS);
+
+  if (!startDateValue) {
+    return today;
+  }
+
+  const parsed = new Date(startDateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Start date is invalid.");
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+  if (parsed < minimum || parsed > today) {
+    throw new Error(`Start date must be between ${formatDateOnly(minimum)} and ${formatDateOnly(today)}.`);
+  }
+
+  return parsed;
+};
+
+const calculateProjectProgress = async (projectId) => {
+  const totalTasks = await Task.countDocuments({ project: projectId });
+  if (totalTasks === 0) {
+    return 0;
+  }
+
+  const completedTasks = await Task.countDocuments({
+    project: projectId,
+    status: "Completed",
+  });
+
+  return Math.round((completedTasks / totalTasks) * 100);
+};
+
+const syncProjectProgress = async (projectId) => {
+  const progress = await calculateProjectProgress(projectId);
+  await Project.findByIdAndUpdate(projectId, { progress });
+  return progress;
 };
 
 const buildMembersFromTeamAndUsers = async ({ teamId, memberIds = [], ownerId }) => {
@@ -67,7 +125,6 @@ const createProject = async (req, res) => {
       priority,
       startDate,
       endDate,
-      progress,
       members = [],
       team: teamId = null,
     } = req.body;
@@ -83,9 +140,9 @@ const createProject = async (req, res) => {
       description,
       status,
       priority,
-      startDate,
+      startDate: resolveProjectStartDate(startDate),
       endDate,
-      progress: progress || 0,
+      progress: 0,
       members: normalizedMembers,
       owner: req.user._id,
       team: teamId || null,
@@ -118,6 +175,13 @@ const getProjects = async (req, res) => {
       .populate("members.user", "name email role")
       .populate("team", "name description manager members")
       .sort({ createdAt: -1 });
+
+    await Promise.all(
+      projects.map(async (project) => {
+        project.progress = await syncProjectProgress(project._id);
+      })
+    );
+
     res.status(200).json(projects);
   } catch (error) {
     res.status(500).json({
@@ -130,14 +194,13 @@ const updateProject = async (req, res) => {
   try {
     const project = req.project;
 
-    const { name, description, status, priority, startDate, endDate, progress, members, team: teamId } = req.body;
+    const { name, description, status, priority, startDate, endDate, members, team: teamId } = req.body;
     if (name) project.name = name;
     if (description !== undefined) project.description = description;
     if (status) project.status = status;
     if (priority) project.priority = priority;
-    if (startDate) project.startDate = startDate;
+    if (startDate) project.startDate = resolveProjectStartDate(startDate);
     if (endDate) project.endDate = endDate;
-    if (progress !== undefined) project.progress = progress;
     if (members !== undefined || teamId !== undefined) {
       if (req.user.role !== "admin") {
         return res.status(403).json({ message: "Only administrators can assign teams or reassign project members." });
@@ -152,6 +215,7 @@ const updateProject = async (req, res) => {
     }
 
     await project.save();
+    project.progress = await syncProjectProgress(project._id);
     await project.populate("owner", "name email");
     await project.populate("members.user", "name email role");
     await project.populate("team", "name description");
@@ -449,8 +513,6 @@ const transferProjectOwnership = async (req, res) => {
 
 const getProjectById = async (req, res) => {
   try {
-    const Project = require("../models/Project");
-    const Task = require("../models/Task");
     const ActivityLog = require("../models/ActivityLog");
 
     const project = await Project.findById(req.params.id)
@@ -471,6 +533,12 @@ const getProjectById = async (req, res) => {
     const inProgressTasks = tasks.filter(t => t.status === "In Progress").length;
     const reviewTasks = tasks.filter(t => t.status === "Review").length;
     const pendingTasks = tasks.filter(t => t.status === "To Do").length;
+    const calculatedProgress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+    if (project.progress !== calculatedProgress) {
+      project.progress = calculatedProgress;
+      await project.save();
+    }
 
     // Fetch activity logs
     const activityLogs = await ActivityLog.find({ project: project._id })
